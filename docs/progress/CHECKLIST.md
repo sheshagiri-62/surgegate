@@ -39,7 +39,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [x] 1. Create the repo structure, Makefile, pre-commit hooks and a README stub
 - [x] 2. `infra/bootstrap`: S3 state bucket with versioning and native lock file; GitHub OIDC provider; `plan` (read-only) and `apply` roles
-- [ ] 3. `infra-plan.yml`: on every pull request, run `terraform fmt`, `validate`, `tflint` and post the plan as a comment
+- [x] 3. `infra-plan.yml`: on every pull request, run `terraform fmt`, `validate`, `tflint` and post the plan as a comment
 - [ ] 4. `network` module: VPC, two AZs, public/private/data subnets, one NAT, S3 and DynamoDB gateway endpoints
 - [ ] 5. ADR 001: why EKS, SQS for jobs + EventBridge/Kinesis for events, static buyer site
 
