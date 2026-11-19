@@ -13,7 +13,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [x] Decision: sale-events stream = EventBridge + Kinesis, not MSK ([ADR 002](../adr/002-eventbridge-kinesis-instead-of-msk.md))
 - [x] Paid plan confirmed (`accountPlanType: PAID`, 19 Nov; $140 credit kept)
 - [ ] Kinesis reachable after the upgrade (still `SubscriptionRequiredException`, 19 Nov) — re-check evening + 20 Nov morning
-- [ ] EC2 vCPU quota 16 in ap-south-1 (request PENDING, 19 Nov)
+- [ ] EC2 vCPU quota 16 in ap-south-1 (request CASE_OPENED; current value 8, 19 Nov 06:07 UTC)
 - [ ] Root user: MFA on, no access keys, never used again
 - [x] IAM user `sheshagiri-admin`; CLI login with `aws login --profile surgegate` (verified with `sts get-caller-identity`)
 - [ ] IAM user MFA confirmed
