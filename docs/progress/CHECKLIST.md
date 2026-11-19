@@ -1,7 +1,7 @@
-# SurgeGate — Build checklist
+# SurgeGate â€” Build checklist
 
 Source: [implementation plan](../implementation-plan.md). One plan-day per calendar day,
-Thu 19 Nov → Mon 30 Nov 2026. 1–3 Dec is overflow buffer only.
+Thu 19 Nov â†’ Mon 30 Nov 2026. 1â€“3 Dec is overflow buffer only.
 Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 ## Setup (first 4 hours of Day 1)
@@ -33,9 +33,9 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [ ] Provider `default_tags`: `Project=surgegate`, `Env`, `Component`
 - [ ] `make down` at the end of every session
 
-## Phase 1 — Foundations (Days 1–2) → M1
+## Phase 1 â€” Foundations (Days 1â€“2) â†’ M1
 
-**Day 1 — Thu 19 Nov**
+**Day 1 â€” Thu 19 Nov**
 
 - [x] 1. Create the repo structure, Makefile, pre-commit hooks and a README stub
 - [x] 2. `infra/bootstrap`: S3 state bucket with versioning and native lock file; GitHub OIDC provider; `plan` (read-only) and `apply` roles
@@ -43,7 +43,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [ ] 4. `network` module: VPC, two AZs, public/private/data subnets, one NAT, S3 and DynamoDB gateway endpoints
 - [x] 5. ADR 001: why EKS, SQS for jobs + EventBridge/Kinesis for events, static buyer site
 
-**Day 2 — Fri 20 Nov**
+**Day 2 â€” Fri 20 Nov**
 
 - [ ] 1. `eks` module: cluster, managed node group, Pod Identity, AWS Load Balancer Controller
 - [ ] 2. Install Argo CD on the cluster; point it at `deploy/argocd`
@@ -53,16 +53,16 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [ ] **M1:** a merge to `main` deploys hello-world to EKS through Argo CD, it answers at `https://api.<domain>/healthz`, and `make down` leaves nothing billable
 
-## Phase 2 — Booking core (Days 3–4) → M2
+## Phase 2 â€” Booking core (Days 3â€“4) â†’ M2
 
-**Day 3 — Sat 21 Nov**
+**Day 3 â€” Sat 21 Nov**
 
 - [ ] 1. `data` module: RDS PostgreSQL (single-AZ in dev), ElastiCache Redis, S3 buckets, KMS key, Secrets Manager entries
 - [ ] 2. Booking API: SQLAlchemy models and Alembic migrations for tenants, events, seats, holds, orders, order_items
 - [ ] 3. Cognito user pool with buyer and organiser groups; JWT checks in FastAPI
-- [ ] 4. Organiser endpoints: create event, upload seat map (CSV), list events — tenant-scoped
+- [ ] 4. Organiser endpoints: create event, upload seat map (CSV), list events â€” tenant-scoped
 
-**Day 4 — Sun 22 Nov**
+**Day 4 â€” Sun 22 Nov**
 
 - [ ] 1. Seat map endpoint with Redis cache and invalidation on change
 - [ ] 2. Hold endpoint: single conditional `UPDATE`, per-buyer limit in the same transaction
@@ -72,16 +72,16 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [ ] **M2:** an organiser creates an event with a seat map, a buyer holds seats from the browser, and the concurrency test proves zero double bookings
 
-## Phase 3 — Waiting room (Days 5–6) → M3
+## Phase 3 â€” Waiting room (Days 5â€“6) â†’ M3
 
-**Day 5 — Mon 23 Nov**
+**Day 5 â€” Mon 23 Nov**
 
 - [ ] 1. `queue` module: API Gateway, `join` Lambda writing to SQS, `sequencer` Lambda assigning positions in batches into DynamoDB
 - [ ] 2. One place per account (conditional write); pre-queue shuffle at sale start
 - [ ] 3. `position` endpoint returning a signed queue token (key in Secrets Manager)
 - [ ] 4. `serving` endpoint behind CloudFront with a 5-second cache
 
-**Day 6 — Tue 24 Nov**
+**Day 6 â€” Tue 24 Nov**
 
 - [ ] 1. `valve` Lambda on EventBridge Scheduler raising "serving N" by the admission rate; pause and resume
 - [ ] 2. `admit` endpoint issuing a 15-minute booking pass; CloudFront Function checking it on `/book/*`
@@ -90,16 +90,16 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [ ] **M3:** 1,000 simulated buyers join, the pre-queue is shuffled, they are admitted at the set rate, and `/book/*` without a valid pass is refused at the edge
 
-## Phase 4 — Checkout and live events (Days 7–8) → M4
+## Phase 4 â€” Checkout and live events (Days 7â€“8) â†’ M4
 
-**Day 7 — Wed 25 Nov**
+**Day 7 â€” Wed 25 Nov**
 
 - [ ] 1. Step Functions hold timer: wait 10 minutes, release only if still held by the same hold
 - [ ] 2. Orders with idempotency keys; Razorpay test-mode checkout in the buyer app
 - [ ] 3. Webhook endpoint: verify signature, put on SQS; order worker confirms exactly once by payment ID
 - [ ] 4. Late-payment rule: re-hold if seats are free, otherwise refund (test mode) and notify
 
-**Day 8 — Thu 26 Nov**
+**Day 8 â€” Thu 26 Nov**
 
 - [ ] 1. Ticket worker: PDF + QR code to S3, email through SES (verified sandbox addresses)
 - [ ] 2. `events` module: EventBridge bus + Kinesis stream `sale-events`; producers in the queue Lambdas and the booking API
@@ -108,16 +108,16 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [ ] **M4:** a buyer goes from queue to paid ticket email in one run, a duplicate webhook changes nothing, an unpaid hold is released after 10 minutes, and the organiser watches it update live
 
-## Phase 5 — Harden and scale (Days 9–10) → M5
+## Phase 5 â€” Harden and scale (Days 9â€“10) â†’ M5
 
-**Day 9 — Fri 27 Nov**
+**Day 9 â€” Fri 27 Nov**
 
 - [ ] 1. Build the `demo` environment: two NAT gateways, Multi-AZ RDS, Redis replica, Karpenter, 2+ nodes
 - [ ] 2. WAF on CloudFront and API Gateway: rate rules, managed bot rules on `/queue/*`, challenge before join
 - [ ] 3. Observability: structured logs, CloudWatch "sale room" dashboards, Container Insights, X-Ray through OpenTelemetry
 - [ ] 4. SLO alarms; SNS email alerts; three runbooks (queue backlog, booking latency, payment backlog)
 
-**Day 10 — Sat 28 Nov**
+**Day 10 â€” Sat 28 Nov**
 
 - [ ] 1. Pre-scaling job 15 minutes before a sale; backpressure Lambda lowering the admission rate when p95 > 500 ms
 - [ ] 2. Argo Rollouts canary for the booking API with automatic rollback on error rate
@@ -126,16 +126,16 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [ ] **M5:** the 50,000-user test report shows the SLOs met with zero oversold seats, and a deliberately broken release rolls back on its own
 
-## Phase 6 — Prove and present (Days 11–12) → M6
+## Phase 6 â€” Prove and present (Days 11â€“12) â†’ M6
 
-**Day 11 — Sun 29 Nov**
+**Day 11 â€” Sun 29 Nov**
 
 - [ ] 1. AWS FIS experiment: cut one AZ's subnets for 5 minutes during a k6 run; record lost orders (target 0)
 - [ ] 2. Restore drill: point-in-time restore of RDS to a new instance; record the time as RTO
 - [ ] 3. Azure: Static Web Apps status page; nightly backup copy to Blob Storage via GitHub Actions federated login
 - [ ] 4. Cost report: total spend, cost per sale event from tags and Cost Explorer
 
-**Day 12 — Mon 30 Nov**
+**Day 12 â€” Mon 30 Nov**
 
 - [ ] 1. README with architecture, results table, how to run, cost warning
 - [ ] 2. Portfolio write-up and a 5-minute demo video (queue, sale, AZ failure, rollback)

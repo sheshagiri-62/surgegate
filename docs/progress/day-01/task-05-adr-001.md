@@ -3,7 +3,7 @@
 - **Date:** 2026-11-19
 - **Phase / milestone:** Phase 1 (Foundations) → M1
 - **Status:** Done
-- **Commit / PR:** see PR link added below after opening
+- **Commit / PR:** [PR #6](https://github.com/sheshagiri-62/surgegate/pull/6)
 
 ## 1. What the task was
 
@@ -70,6 +70,7 @@ None.
 - Every claim in the ADR matches the current blueprint (decisions table, sale-events section,
   Design Q&A) and links ADR 002 for the MSK → Kinesis change.
 - The pre-commit hooks passed on commit.
+- PR #6 is docs-only, so it was the first real test of the `infra-plan` skip path: `detect` printed "No Terraform-related changes; skipping fmt and plan.", `terraform fmt` and `plan` were skipped, and the required `infra-plan` check **passed** (run [44469824922](https://github.com/sheshagiri-62/surgegate/actions/runs/44469824922)).
 
 ## 6. Cost impact
 
