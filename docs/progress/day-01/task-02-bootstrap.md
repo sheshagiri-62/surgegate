@@ -2,8 +2,8 @@
 
 - **Date:** 2026-11-19
 - **Phase / milestone:** Phase 1 (Foundations) → M1
-- **Status:** Done (applied and verified). PR #2 not opened yet: PR #1 is still unmerged on GitHub, so the branch can't be rebased onto `main` (see section 4, error 9).
-- **Commit / PR:** commit `3c61c1f` on branch [`infra/bootstrap`](https://github.com/sheshagiri-62/surgegate/tree/infra/bootstrap) · PR #2 pending
+- **Status:** Done (applied and verified)
+- **Commit / PR:** commits `c6997de` (infra), `8ff4acd` (docs), `a49fc88` (ADR 001 scope) · [PR #2](https://github.com/sheshagiri-62/surgegate/pull/2)
 
 ## 1. What the task was
 
@@ -35,7 +35,7 @@ renaming the two docs, adding `Env=shared` to CLAUDE.md, and writing ADR 002 (Ev
    every bucket setting, both trust policies, and nine IAM policy simulations.
 9. **Docs:** renamed `docs/*.md.md` → `docs/*.md` (your latest content), added `shared` to the Env
    tag rule in CLAUDE.md, wrote ADR 002, updated the checklist (Day 8 events task, decision lines).
-10. **Committed** on `infra/bootstrap`, stacked on `feat/repo-skeleton` because PR #1 isn't merged.
+10. **Committed** on `infra/bootstrap`. After PR #1 was squash-merged, rebased onto `main` and opened PR #2.
 
 ### Commands I ran
 
@@ -91,6 +91,11 @@ mv docs/blueprint.md.md docs/blueprint.md
 mv docs/implementation-plan.md.md docs/implementation-plan.md
 git switch -C infra/bootstrap feat/repo-skeleton
 git add infra/bootstrap && git commit -m "infra: add bootstrap (state bucket, GitHub OIDC provider, plan and apply roles)"
+gh pr merge 1 --squash
+git fetch origin
+git rebase --onto origin/main feat/repo-skeleton infra/bootstrap
+git push --force-with-lease=infra/bootstrap:c9ada76 origin infra/bootstrap
+gh pr create --base main --head infra/bootstrap --title "infra: bootstrap (state bucket, GitHub OIDC provider, plan and apply roles)"
 ```
 
 ### Files created or changed
@@ -110,7 +115,8 @@ git add infra/bootstrap && git commit -m "infra: add bootstrap (state bucket, Gi
 | `docs/blueprint.md`, `docs/implementation-plan.md` | Renamed from `.md.md`; your EventBridge + Kinesis edits |
 | `docs/adr/002-eventbridge-kinesis-instead-of-msk.md` | ADR 002 |
 | `CLAUDE.md` | Env tag values now `dev|demo|shared` |
-| `docs/progress/CHECKLIST.md` | Task 2 ticked; stream decision; Day 8 events task text |
+| `docs/progress/CHECKLIST.md` | Task 2 ticked; stream decision; Day 8 events task text; ADR 001 scope |
+| `docs/implementation-plan.md` (Day 1 Task 5) | ADR 001 now covers "SQS for jobs + EventBridge/Kinesis for events" |
 
 ## 3. How it works
 
@@ -163,7 +169,7 @@ up to one hour. No AWS keys are ever stored in GitHub, so there's nothing to lea
 | 6 | `Error: Too many command line arguments` … `To specify a working directory for the plan, use the global -chdir flag.` | Windows PowerShell 5.1 splits `-out=bootstrap.tfplan` at the dot into two arguments. | Quoted it: `'-out=bootstrap.tfplan'`. |
 | 7 | Command timed out after 300 s (moved to background) | `terraform providers lock` for two platforms plus the failing plan took longer than the tool's timeout. | Re-ran plan on its own (it takes a few seconds). |
 | 8 | (Design bug, no error message) `profile = "surgegate"` hard-coded in `backend.tf` and the provider | That would break CI: GitHub runners have no such profile and use OIDC credentials instead. | Removed the profile from code; set `AWS_PROFILE` in the environment (the Makefile already exports it). `terraform init -reconfigure`, then plan showed no changes. |
-| 9 | `gh pr view 1` → `{"mergedAt":null,"state":"OPEN"}`; `origin/main` still at `50cd1a6` | PR #1 isn't merged on GitHub, although the message said it was. Recreating the branch from `origin/main` removed the Task 1 files from the working tree. | Recreated `infra/bootstrap` on top of `feat/repo-skeleton` (nothing lost). PR #2 waits until #1 is merged, then I rebase onto `main`. |
+| 9 | `gh pr view 1` → `{"mergedAt":null,"state":"OPEN"}`; `origin/main` still at `50cd1a6` | PR #1 isn't merged on GitHub, although the message said it was. Recreating the branch from `origin/main` removed the Task 1 files from the working tree. | Recreated `infra/bootstrap` on top of `feat/repo-skeleton` (nothing lost). Later: `gh pr merge 1 --squash`, then `git rebase --onto origin/main feat/repo-skeleton infra/bootstrap` (drops the pre-squash Task 1 commits), `git push --force-with-lease` on the feature branch only, and opened PR #2. |
 
 ## 5. How I verified it works
 
