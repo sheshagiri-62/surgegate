@@ -62,6 +62,9 @@ Extra decisions recorded: sale-events stream on EventBridge + Kinesis instead of
 | 27 | 4 | `'make' is not recognized` | Saved PATH lacks `C:\msys64\usr\bin` | Session-only PATH; you fix permanently |
 | 28 | 4 | Empty route-table query | Wrong filter (`Tier` tag not on route tables) | Filter by `Name` |
 | 29 | 4 | `jq … invalid escape sequence "\*"` | Bad regex escaping | Used `grep` |
+| 30 | Summary | `Set-Content : Cannot bind parameter 'Encoding'. Cannot convert value "utf8NoBOM"` | PowerShell 5.1 has no `utf8NoBOM` | Used another method (next row) |
+| 31 | Summary | Checklist characters mangled (`—` → `â€”`) | PowerShell 5.1 `Get-Content` read UTF-8 as ANSI, then the fallback wrote it back | Restored from the previous commit (`git checkout b8bdff0 -- docs/progress/CHECKLIST.md`); use `sed` or the editor for UTF-8 files |
+| 32 | Summary | `sed` edit silently didn't apply | Escaping `\*` inside the sed pattern didn't match the line | Made the edit with the editor tool |
 
 ## Cost today
 
