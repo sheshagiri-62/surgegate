@@ -36,17 +36,28 @@ test: ## Run unit tests for each Python service that has tests
 check-env:
 	@case "$(ENV)" in dev|demo) ;; *) echo "ENV must be dev or demo (got '$(ENV)')"; exit 1;; esac
 
-# up/down are completed on Day 2 ("make up / make down working for dev").
-# Until then they refuse to pretend: no .tf files means nothing exists to create or destroy.
-up: check-env ## Create the ENV environment (asks before applying)
-	@if ! ls $(ENV_DIR)/*.tf >/dev/null 2>&1; then \
-		echo "No Terraform in $(ENV_DIR) yet — nothing to create."; exit 0; fi; \
-	echo "make up is not wired yet (Day 2 task). Run terraform plan/apply by hand."; exit 1
+# Network layer only (Day 1). Day 2 extends these with EKS ("make up / make down working for dev").
+# Both save the plan to a file and apply exactly that file.
+UP_PLAN   := $(ENV_DIR)/up.tfplan
+DOWN_PLAN := $(ENV_DIR)/down.tfplan
 
-down: check-env ## Destroy the hourly-billed parts of ENV
-	@if ! ls $(ENV_DIR)/*.tf >/dev/null 2>&1; then \
-		echo "No Terraform in $(ENV_DIR) yet — nothing to destroy."; exit 0; fi; \
-	echo "make down is not wired yet (Day 2 task). CHECK THE CONSOLE for running resources."; exit 1
+up: check-env ## Create the ENV environment: shows the plan, asks "yes" before applying
+	terraform -chdir=$(ENV_DIR) init -input=false
+	terraform -chdir=$(ENV_DIR) plan -input=false -var=enable_nat_gateway=true -out=up.tfplan
+	@printf 'Apply this plan? It creates HOURLY-billed resources (NAT gateway). Type yes: '; \
+		read ans; [ "$$ans" = "yes" ] || { echo "Not applied."; rm -f $(UP_PLAN); exit 1; }
+	terraform -chdir=$(ENV_DIR) apply -input=false up.tfplan
+	@rm -f $(UP_PLAN)
+
+down: check-env ## Remove the hourly-billed parts of ENV (NAT gateway + Elastic IP); free VPC stays
+	terraform -chdir=$(ENV_DIR) init -input=false
+	terraform -chdir=$(ENV_DIR) plan -input=false -var=enable_nat_gateway=false -out=down.tfplan
+	terraform -chdir=$(ENV_DIR) apply -input=false down.tfplan
+	@rm -f $(DOWN_PLAN)
+	@echo "Still billing by the hour in $(ENV) (should be none):"
+	@aws ec2 describe-nat-gateways --filter Name=tag:Env,Values=$(ENV) Name=state,Values=pending,available \
+		--query 'NatGateways[].NatGatewayId' --output text
+	@aws ec2 describe-addresses --filters Name=tag:Env,Values=$(ENV) --query 'Addresses[].PublicIp' --output text
 
 load: ## Run a k6 load test (K6_SCRIPT=path)
 	@if [ ! -f "$(K6_SCRIPT)" ]; then echo "No k6 script at $(K6_SCRIPT) yet."; \
