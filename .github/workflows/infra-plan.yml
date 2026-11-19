@@ -1,13 +1,12 @@
 # On every pull request that touches Terraform: fmt, validate, tflint and plan for each root,
 # then post the plan as a PR comment. Uses the read-only surgegate-gha-plan role through OIDC.
+#
+# Runs on EVERY pull request (no paths filter) so the final "infra-plan" job always reports;
+# it is a required status check on main. PRs that don't touch Terraform skip fmt/plan and pass.
 name: infra-plan
 
 on:
   pull_request:
-    paths:
-      - "infra/**"
-      - ".tflint.hcl"
-      - ".github/workflows/infra-plan.yml"
 
 permissions:
   contents: read
@@ -28,9 +27,23 @@ jobs:
     name: Find Terraform roots
     runs-on: ubuntu-latest
     outputs:
+      changed: ${{ steps.changes.outputs.changed }}
       roots: ${{ steps.roots.outputs.roots }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history, to diff against the PR base
+
+      - id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          files=$(git diff --name-only "$BASE_SHA" HEAD)
+          if echo "$files" | grep -Eq '^(infra/|\.tflint\.hcl$|\.github/workflows/infra-plan\.yml$)'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"; echo "Terraform-related files changed."
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "No Terraform-related changes; skipping fmt and plan."
+          fi
 
       # A root is infra/bootstrap or infra/envs/<env>, if it holds .tf files. Modules are
       # checked through the roots that call them.
@@ -44,6 +57,8 @@ jobs:
 
   fmt:
     name: terraform fmt
+    needs: detect
+    if: needs.detect.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,7 +71,7 @@ jobs:
   plan:
     name: plan (${{ matrix.root }})
     needs: [detect, fmt]
-    if: needs.detect.outputs.roots != '[]'
+    if: needs.detect.outputs.changed == 'true' && needs.detect.outputs.roots != '[]'
     # Fork PRs get no OIDC token, and must never reach AWS.
     runs-on: ubuntu-latest
     strategy:
@@ -162,3 +177,18 @@ jobs:
       - name: Fail if plan failed
         if: steps.plan.outputs.exitcode == '1'
         run: exit 1
+
+  # The single required status check on main. Always runs; "skipped" jobs count as success.
+  infra-plan:
+    name: infra-plan
+    needs: [detect, fmt, plan]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) echo "::error::A required job ended with '$r'."; exit 1;; esac
+          done
