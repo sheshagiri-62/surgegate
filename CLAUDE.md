@@ -48,8 +48,8 @@ If a day's tasks will not finish, say so early and list what moves to the next m
 3. **Infrastructure only through Terraform.** No console changes except the one-time manual steps
    listed in the plan. Run `terraform fmt`, `validate` and `plan` before every apply; save the plan
    with `-out` and apply that file.
-4. **Tags on everything:** `Project=surgegate`, `Env=<dev|demo>`, `Component=<module>` via provider
-   `default_tags`.
+4. **Tags on everything:** `Project=surgegate`, `Env=<dev|demo|shared>`, `Component=<module>` via provider
+   `default_tags`. `shared` is only for resources used by both environments (`infra/bootstrap`).
 5. **End of every session:** remind me to run `make down`, and list anything still running that bills
    by the hour.
 6. Never run destructive commands (`terraform destroy` on `demo`, deleting state, `git push --force`)

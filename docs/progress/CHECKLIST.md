@@ -9,7 +9,9 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 **Accounts**
 
 - [x] AWS account plan checked: **Free plan**, $140 credit, ends 22 Jan 2027; region `ap-south-1`
-- [x] Free-plan service check (read-only, 19 Nov): EKS and WAF reachable; **MSK blocked** (`SubscriptionRequiredException`) — decision pending
+- [x] Free-plan service check (read-only, 19 Nov): EKS and WAF reachable; MSK and Kinesis blocked (`SubscriptionRequiredException`)
+- [x] Decision: sale-events stream = EventBridge + Kinesis, not MSK ([ADR 002](../adr/002-eventbridge-kinesis-instead-of-msk.md))
+- [ ] Paid-plan upgrade confirmed by `aws freetier get-account-plan-state` and Kinesis reachable (still FREE / blocked at last check, 19 Nov)
 - [ ] Root user: MFA on, no access keys, never used again
 - [x] IAM user `sheshagiri-admin`; CLI login with `aws login --profile surgegate` (verified with `sts get-caller-identity`)
 - [ ] IAM user MFA confirmed
@@ -36,7 +38,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 **Day 1 — Thu 19 Nov**
 
 - [x] 1. Create the repo structure, Makefile, pre-commit hooks and a README stub
-- [ ] 2. `infra/bootstrap`: S3 state bucket with versioning and native lock file; GitHub OIDC provider; `plan` (read-only) and `apply` roles
+- [x] 2. `infra/bootstrap`: S3 state bucket with versioning and native lock file; GitHub OIDC provider; `plan` (read-only) and `apply` roles
 - [ ] 3. `infra-plan.yml`: on every pull request, run `terraform fmt`, `validate`, `tflint` and post the plan as a comment
 - [ ] 4. `network` module: VPC, two AZs, public/private/data subnets, one NAT, S3 and DynamoDB gateway endpoints
 - [ ] 5. ADR 001: why EKS, SQS + MSK, static buyer site
@@ -100,7 +102,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 **Day 8 — Thu 26 Nov**
 
 - [ ] 1. Ticket worker: PDF + QR code to S3, email through SES (verified sandbox addresses)
-- [ ] 2. `events` module: MSK Serverless topic `sale-events`; producers in the queue Lambdas and the booking API
+- [ ] 2. `events` module: EventBridge bus + Kinesis stream `sale-events`; producers in the queue Lambdas and the booking API
 - [ ] 3. Consumers: live-dashboard (WebSocket push), analytics (S3 + Athena table), audit
 - [ ] 4. Organiser SSR dashboard on EKS: live numbers, pause/resume, admission rate, attendee export; gate check-in endpoint
 
