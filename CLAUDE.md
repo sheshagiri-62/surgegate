@@ -4,9 +4,14 @@ You are helping Sheshagiri build **SurgeGate**, a flash-sale ticketing platform 
 waiting room, on AWS (EKS, Lambda, API Gateway, SQS, DynamoDB, RDS PostgreSQL, ElastiCache, Step
 Functions, MSK, CloudFront, WAF), built with Terraform, GitHub Actions (OIDC), Helm and Argo CD.
 
-- Blueprint (what we build and why): https://claude.ai/artifact/8Z6a6Fmb9oRAKT2CAzG8DN
-- Implementation plan (week-by-week tasks): https://claude.ai/artifact/2wcRLbYKQyesdscvRuySyb
-- Repo: https://github.com/sheshagiri-62/surgegate
+Read these two files before any task; they are the source of truth:
+
+- `docs/blueprint.md` — project blueprint and system design (what we build and why: features,
+  architecture, data model, APIs, failure modes, scaling, security, cost).
+- `docs/implementation-plan.md` — the day-by-day task list, milestones (M1–M6), repo layout,
+  environments, testing strategy, risks.
+
+Repo: https://github.com/sheshagiri-62/surgegate
 
 Follow the implementation plan **phase by phase, day by day, one task at a time**, in the order
 listed. Do not build anything the plan does not call for, and do not drop anything it does.
