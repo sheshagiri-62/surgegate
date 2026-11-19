@@ -50,7 +50,7 @@ surgegate/
       edge/               # Route 53, ACM, CloudFront, CloudFront Function, WAF
       queue/              # API Gateway, queue Lambdas, SQS, Scheduler, WebSocket API
       async/              # Step Functions, payment and ticket workers, SES
-      events/             # MSK Serverless, sale-events consumers
+      events/             # EventBridge bus, Kinesis stream, sale-events consumers
       observability/      # log groups, alarms, dashboards, SNS
       security/           # CloudTrail, GuardDuty, Security Hub, Config
       cost/               # Budgets, cost allocation tags
@@ -83,7 +83,7 @@ surgegate/
 | EKS nodes | 1–2 small nodes | 2+ nodes across 2 AZs, Karpenter on |
 | RDS | Single-AZ, smallest class | Multi-AZ |
 | Redis | 1 node | Primary + replica |
-| WAF, MSK, Security Hub | Off (MSK on only in Phase 4) | On |
+| WAF, Kinesis, Security Hub | Off (Kinesis on from Day 8, only during sessions) | On |
 | Data between sessions | Kept as RDS snapshot + DynamoDB tables | Destroyed after the demo |
 
 ## Phases 1–3: platform, booking core, waiting room
@@ -96,7 +96,7 @@ surgegate/
 - [ ] `infra/bootstrap`: S3 state bucket with versioning and native lock file; GitHub OIDC provider; `plan` (read-only) and `apply` roles.
 - [ ] `infra-plan.yml`: on every pull request, run `terraform fmt`, `validate`, `tflint` and post the plan as a comment.
 - [ ] `network` module: VPC, two AZs, public/private/data subnets, one NAT, S3 and DynamoDB gateway endpoints.
-- [ ] ADR 001: why EKS, SQS + MSK, static buyer site (copy from the blueprint).
+- [ ] ADR 001: why EKS, SQS for jobs + EventBridge/Kinesis for events, static buyer site (copy from the blueprint).
 
 **Day 2 (Fri 20 Nov)**
 
@@ -159,7 +159,7 @@ surgegate/
 **Day 8 (Thu 26 Nov)**
 
 - [ ] Ticket worker: PDF + QR code to S3, email through SES (verify your test addresses in the SES sandbox).
-- [ ] `events` module: MSK Serverless topic `sale-events`; producers in the queue Lambdas and the booking API.
+- [ ] `events` module: EventBridge bus + Kinesis stream `sale-events`; producers in the queue Lambdas and the booking API.
 - [ ] Consumers: live-dashboard (WebSocket push), analytics (S3 + Athena table), audit.
 - [ ] Organiser SSR dashboard on EKS: live numbers, pause/resume, admission rate, attendee export; gate check-in endpoint.
 
@@ -230,7 +230,7 @@ surgegate/
 **Budget controls.** Target under $50 of AWS spend for the whole build.
 
 - Budgets alerts at $15 / $30 / $45; check Cost Explorer every Sunday.
-- Hourly items (EKS control plane, NAT, ALB, RDS, Redis, MSK, WAF) exist only during work sessions; `make down` every time.
+- Hourly items (EKS control plane, NAT, ALB, RDS, Redis, Kinesis, WAF) exist only during work sessions; `make down` every time.
 - The `demo` environment lives only on Days 9–12 and only while testing.
 - Logs kept 14 days; S3 lifecycle rules on every bucket.
 
@@ -243,7 +243,7 @@ surgegate/
 | Exams or other projects cut a day | High | Leftover tasks move to the next morning; 1–3 December is the overflow buffer; the cut list is a last resort only |
 | SES sandbox limits emails | High | Verify your own test addresses; show the email in the demo from those |
 | 50,000-user load test is costly | Medium | Run at 10,000 first; run 50,000 once, in the demo environment, for 10 minutes |
-| MSK setup harder than expected | Medium | Ship Phase 4 with EventBridge first, switch the stream to MSK when it works |
+| Kinesis consumers harder than expected | Medium | Ship Phase 4 with EventBridge rules first, add the Kinesis stream when the consumers work |
 
 **Cut list (drop in this order if behind; never cut M2's no-oversell test or the M4 end-to-end flow)**
 
@@ -257,4 +257,4 @@ surgegate/
 
 - When are your ESA exams? Those days lose build hours; plan to use the 1–3 December buffer for them.
 - When is your final project review? The demo and write-up are ready by 30 November either way.
-- Free plan: finishing by 30 November keeps the whole build inside your free period (it ends 22 January 2027), but some services may still be blocked on the Free plan. Day 1 checks this before anything else; if EKS, MSK or WAF is blocked, you upgrade to the Paid plan that day.
+- Free plan: finishing by 30 November keeps the whole build inside your free period (it ends 22 January 2027), but some services may still be blocked on the Free plan. Day 1 check: MSK Serverless is blocked, so the sale-events stream uses EventBridge + Kinesis (ADR 002). EKS and WAF passed read-only checks; if their creation is blocked, upgrade directly (Billing → Upgrade, never via Organizations, which wipes the credits). The 5-vCPU EC2 limit covers dev; request more before the Day 9 demo build if needed.

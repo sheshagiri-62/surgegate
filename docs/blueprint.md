@@ -4,7 +4,7 @@ Nov 19, 2026 · @sheshagiri
 
 ## In one paragraph
 
-SurgeGate is a ticketing platform built to survive flash sales: when tens of thousands of people arrive at once for a concert, a college fest or an admission round, it puts them in a fair virtual queue, admits only as many as the booking system can serve, holds seats for 10 minutes while they pay, and never sells the same seat twice. It runs on AWS (CloudFront, WAF, API Gateway, Lambda, DynamoDB, EKS, RDS, ElastiCache, SQS, Step Functions, EventBridge, MSK), built with Terraform, GitHub Actions and Argo CD. The panel demo: 50,000 simulated fans hit a sale, the site stays up, bots are blocked, and one Availability Zone is switched off mid-sale without losing an order.
+SurgeGate is a ticketing platform built to survive flash sales: when tens of thousands of people arrive at once for a concert, a college fest or an admission round, it puts them in a fair virtual queue, admits only as many as the booking system can serve, holds seats for 10 minutes while they pay, and never sells the same seat twice. It runs on AWS (CloudFront, WAF, API Gateway, Lambda, DynamoDB, EKS, RDS, ElastiCache, SQS, Step Functions, EventBridge, Kinesis), built with Terraform, GitHub Actions and Argo CD. The panel demo: 50,000 simulated fans hit a sale, the site stays up, bots are blocked, and one Availability Zone is switched off mid-sale without losing an order.
 
 **Pitch:** "The sale that BookMyShow couldn't handle, built so it can't crash."
 
@@ -112,7 +112,7 @@ The stack reuses the languages you already know (Python, TypeScript) so the 12 w
 | Waiting-room API | Python on AWS Lambda behind API Gateway | Spiky traffic, pay per request, scales to thousands of requests per second without servers |
 | Booking API | Python FastAPI in Docker on Amazon EKS (managed node group + Karpenter), packaged with Helm | Steady traffic and database connections; EKS is what AWS DevOps job descriptions ask for; the cluster is built by Terraform only for work sessions and the demo |
 | Background jobs | SQS + Lambda; Step Functions for the 10-minute hold | Job queues: each message handled once by one worker, with retries and dead-letter queues |
-| Sale events stream | Amazon MSK Serverless (Kafka) topic sale-events, published by the booking API and queue Lambdas; created only for load tests and the demo | One event per join, admission, hold and sale; several consumer groups (live dashboard, analytics to S3, audit) read and replay the same ordered stream |
+| Sale events stream | EventBridge custom bus + Kinesis Data Streams stream sale-events (partition key = event ID), published by the booking API and queue Lambdas | One event per join, admission, hold and sale; several consumer groups (live dashboard, analytics to S3, audit) read and replay the same ordered stream |
 | Main database | Amazon RDS PostgreSQL, Multi-AZ | Seats and orders need transactions and row locks so a seat is sold once |
 | Queue state | Amazon DynamoDB | Millions of small writes with predictable latency; conditional writes and TTL |
 | Cache | Amazon ElastiCache (Redis) | Seat-map cache and per-user rate limits |
@@ -142,7 +142,7 @@ Only buyers holding a valid booking pass reach the VPC; everyone else is served 
 | Booking API | Amazon EKS (managed node group in 2 AZs, Karpenter) behind an ALB via the AWS Load Balancer Controller | Seat map, holds, checkout, orders |
 | Organiser dashboard | Next.js SSR on the same EKS cluster | Event setup, live sale view, queue controls, exports |
 | Live updates | API Gateway WebSocket API + Lambda | Pushes dashboard numbers and seat changes to browsers |
-| Sale events stream | MSK Serverless (Kafka) + Lambda consumers | Carries joined, admitted, held and sold events to the dashboard, analytics and audit |
+| Sale events stream | EventBridge bus + Kinesis Data Streams + Lambda consumers | Carries joined, admitted, held and sold events to the dashboard, analytics and audit |
 | Seat hold timer | Step Functions | Releases unpaid seats after 10 minutes |
 | Payment intake | ALB route + SQS + order worker | Verifies Razorpay webhooks, confirms orders exactly once |
 | Ticket worker | SQS + Lambda + S3 + SES | Generates PDF/QR tickets and emails them |
@@ -298,14 +298,14 @@ Autoscaling reacts after load arrives, which is too late for a crowd that lands 
 | --- | --- | --- | --- |
 | Container platform for booking | Amazon EKS | Industry-standard for AWS DevOps roles; Helm and Argo CD carry over | ECS Fargate is simpler and has no control-plane charge, but adds less to your resume |
 | Job queues | SQS | Each job processed once, retries and dead-letter queues, free at idle | Kafka (MSK) is a stream, not a job queue, and bills hourly; already on your resume via LabForge |
-| Event fan-out | Amazon MSK Serverless (Kafka) | Several consumer groups read and replay the same events, ordered per event (partition key = event ID); Kafka on AWS is a common job requirement | Kinesis is simpler but less common in job descriptions; MSK bills hourly, so it exists only for load tests and the demo |
+| Event fan-out | EventBridge + Kinesis Data Streams | Several consumers read and replay the same events, ordered per event (partition key = event ID); EventBridge also routes events to AWS targets such as alerts and the archive | Amazon MSK (Kafka) is blocked on this Free-plan account and bills by the hour; Kafka is already shown in LabForge (ADR 002) |
 | Buyer frontend | Static files + API calls | Survives 50,000 page loads from cache | Server rendering would put every page load on EKS at the worst moment |
 | Organiser frontend | Server-rendered (SSR) | Low traffic, needs fresh logged-in data | Static would work but loads data after the page appears |
 | Seat locking | PostgreSQL conditional update | Strong consistency where it matters | Redis locks are fast but add a second source of truth |
 
-### Sale events with Kafka (Amazon MSK)
+### Sale events with EventBridge and Kinesis
 
-Every state change in a sale becomes one Kafka message on the `sale-events` topic, keyed by event ID so all messages for one event stay in order on one partition.
+Every state change in a sale becomes one record on the `sale-events` Kinesis stream, keyed by event ID so all records for one event stay in order on one shard. The same events also go on an EventBridge bus for AWS-side routing (alarms, archive).
 
 | Producer | Messages |
 | --- | --- |
@@ -314,11 +314,11 @@ Every state change in a sale becomes one Kafka message on the `sale-events` topi
 
 | Consumer group | Runs on | Does |
 | --- | --- | --- |
-| `live-dashboard` | Lambda (MSK event source) | Updates live counters and pushes them over the WebSocket API to organisers |
+| `live-dashboard` | Lambda (Kinesis event source) | Updates live counters and pushes them over the WebSocket API to organisers |
 | `analytics` | Lambda | Writes events to S3 for Athena queries (sales per minute, drop-off from queue to purchase) |
 | `audit` | Lambda | Keeps a tamper-evident record of who was admitted and when, for fairness checks |
 
-Rules: producers use idempotent writes; consumers store the last offset they processed and ignore duplicates by message ID; MSK uses IAM authentication inside the VPC. Jobs that must run exactly once per item (joins, payments, tickets) stay on SQS.
+Rules: every record carries a unique message ID; Lambda consumers process in order per shard, checkpoint by sequence number and ignore duplicates by message ID; failed batches go to an SQS on-failure destination. Jobs that must run exactly once per item (joins, payments, tickets) stay on SQS.
 
 ## Design Q&A
 
@@ -326,9 +326,9 @@ Rules: producers use idempotent writes; consumers store the last offset they pro
 
 **What happens when a huge load arrives suddenly?** No single service takes the hit. CloudFront serves the pages and the cached queue counter, WAF drops bots, API Gateway and SQS accept every join instantly, and the admission valve lets only a fixed number of buyers per minute reach EKS and the database. Because autoscaling reacts too late for a 12:00 spike, the system pre-scales 15 minutes before the sale and lowers the admission rate automatically if the booking API slows down.
 
-**Why use both SQS and Kafka?** They solve different problems. SQS is a job queue: one worker handles each join, payment or ticket, with retries and a dead-letter queue. Kafka is an event log: many consumers read and replay the same ordered events, which suits the live dashboard, analytics and audit.
+**Why use both SQS and Kinesis?** They solve different problems. SQS is a job queue: one worker handles each join, payment or ticket, with retries and a dead-letter queue. Kinesis is an event stream: many consumers read and replay the same ordered events, which suits the live dashboard, analytics and audit.
 
-**Why not Kafka for everything?** Kafka has no per-message retry or dead-letter queue built in, and MSK bills by the hour even when idle. Using it for jobs would add work and cost without benefit.
+**Why not use the stream for everything?** A stream has no per-message retry or dead-letter queue built in, and Kinesis bills by the hour even when idle. Using it for jobs would add work and cost without benefit.
 
 **The buyer site is "static" — how is it dynamic?** Static describes how the files are delivered, not what the page does. The HTML and JavaScript come from the CloudFront cache, then the page calls the APIs for queue position, seats and payment and updates every few seconds. Server-rendering every buyer page would put 50,000 page loads on EKS at the worst moment. The organiser dashboard, which has little traffic, is server-rendered.
 
@@ -372,7 +372,7 @@ The idea is to pay for capacity only during work sessions and the demo; everythi
 - A `make down` that destroys the EKS cluster, compute and database layers between sessions (data kept as snapshots); full stack only for load tests and the demo.
 - Open question: exact RDS and ElastiCache prices for ap-south-1 — check in the AWS Pricing Calculator before Week 1.
 
-MSK Serverless bills by cluster-hour and partition-hour (check the MSK pricing page for ap-south-1), so Terraform creates it only for load tests and the demo, like the EKS cluster.
+Kinesis Data Streams bills by the hour for each stream's capacity (check the Kinesis pricing page for ap-south-1), so Terraform creates the stream only during work sessions, load tests and the demo, like the EKS cluster. MSK was dropped because it is blocked on the Free plan (ADR 002).
 
 ## What it proves, and what comes next
 
@@ -380,7 +380,7 @@ SurgeGate fills the AWS gap on your resume: LabForge already proves Kubernetes, 
 
 **Resume bullets to earn (numbers come from your own tests)**
 
-- Built SurgeGate, a multi-tenant ticketing platform on AWS (CloudFront, WAF, API Gateway, Lambda, DynamoDB, EKS, RDS, ElastiCache, SQS, Step Functions, EventBridge, Amazon MSK) that served `<measured>` concurrent virtual users with zero oversold seats.
+- Built SurgeGate, a multi-tenant ticketing platform on AWS (CloudFront, WAF, API Gateway, Lambda, DynamoDB, EKS, RDS, ElastiCache, SQS, Step Functions, EventBridge, Kinesis) that served `<measured>` concurrent virtual users with zero oversold seats.
 - Designed a fair virtual waiting room with edge-cached queue state and controlled admission, keeping booking p95 latency at `<measured>` ms under a `<measured>`× traffic spike.
 - Provisioned all infrastructure with Terraform modules and deployed to EKS through GitHub Actions (OIDC), Helm and Argo CD, with automatic canary rollback, CloudWatch SLO alarms, and an AZ-failure test that lost no orders.
 
@@ -391,7 +391,7 @@ SurgeGate fills the AWS gap on your resume: LabForge already proves Kubernetes, 
 3. How do you serve 5,000 requests per second of polling cheaply?
 4. How do you make payment webhooks idempotent?
 5. What happens to your system if one Availability Zone fails?
-6. Why Lambda for the queue but EKS for booking, and SQS rather than Kafka?
+6. Why Lambda for the queue but EKS for booking, and SQS for jobs but Kinesis for events?
 7. How do you stop bots without hurting real fans?
 8. How did you keep this under $50?
 
