@@ -36,28 +36,36 @@ test: ## Run unit tests for each Python service that has tests
 check-env:
 	@case "$(ENV)" in dev|demo) ;; *) echo "ENV must be dev or demo (got '$(ENV)')"; exit 1;; esac
 
-# Network layer only (Day 1). Day 2 extends these with EKS ("make up / make down working for dev").
-# Both save the plan to a file and apply exactly that file.
+# Hourly-billed layers are switched by variables: NAT (network) and EKS (cluster, nodes, LB controller).
+# Both targets save the plan to a file and apply exactly that file. Day 2 Task 5 adds the
+# ingress clean-up step (ALBs created by the controller) before the EKS switch-off.
 UP_PLAN   := $(ENV_DIR)/up.tfplan
 DOWN_PLAN := $(ENV_DIR)/down.tfplan
+CLUSTER   := surgegate-$(ENV)
 
 up: check-env ## Create the ENV environment: shows the plan, asks "yes" before applying
 	terraform -chdir=$(ENV_DIR) init -input=false
-	terraform -chdir=$(ENV_DIR) plan -input=false -var=enable_nat_gateway=true -out=up.tfplan
-	@printf 'Apply this plan? It creates HOURLY-billed resources (NAT gateway). Type yes: '; \
+	terraform -chdir=$(ENV_DIR) plan -input=false -var=enable_nat_gateway=true -var=enable_eks=true -out=up.tfplan
+	@printf 'Apply this plan? It creates HOURLY-billed resources (NAT, EKS, nodes). Type yes: '; \
 		read ans; [ "$$ans" = "yes" ] || { echo "Not applied."; rm -f $(UP_PLAN); exit 1; }
 	terraform -chdir=$(ENV_DIR) apply -input=false up.tfplan
 	@rm -f $(UP_PLAN)
+	aws eks update-kubeconfig --name $(CLUSTER) --region $(AWS_REGION)
 
-down: check-env ## Remove the hourly-billed parts of ENV (NAT gateway + Elastic IP); free VPC stays
+down: check-env ## Remove the hourly-billed parts of ENV (EKS + nodes, NAT + Elastic IP); free VPC stays
 	terraform -chdir=$(ENV_DIR) init -input=false
-	terraform -chdir=$(ENV_DIR) plan -input=false -var=enable_nat_gateway=false -out=down.tfplan
+	terraform -chdir=$(ENV_DIR) plan -input=false -var=enable_nat_gateway=false -var=enable_eks=false -out=down.tfplan
 	terraform -chdir=$(ENV_DIR) apply -input=false down.tfplan
 	@rm -f $(DOWN_PLAN)
-	@echo "Still billing by the hour in $(ENV) (should be none):"
-	@aws ec2 describe-nat-gateways --filter Name=tag:Env,Values=$(ENV) Name=state,Values=pending,available \
-		--query 'NatGateways[].NatGatewayId' --output text
-	@aws ec2 describe-addresses --filters Name=tag:Env,Values=$(ENV) --query 'Addresses[].PublicIp' --output text
+	@echo "Still billing by the hour in $(ENV) (every list below should be empty):"
+	@printf '  EKS clusters:   '; aws eks list-clusters --query 'clusters[?@==`$(CLUSTER)`]' --output text; echo
+	@printf '  EC2 instances:  '; aws ec2 describe-instances --filters Name=tag:eks:cluster-name,Values=$(CLUSTER) \
+		Name=instance-state-name,Values=pending,running --query 'Reservations[].Instances[].InstanceId' --output text; echo
+	@printf '  Load balancers: '; aws elbv2 describe-load-balancers --query 'LoadBalancers[].LoadBalancerName' --output text; echo
+	@printf '  NAT gateways:   '; aws ec2 describe-nat-gateways --filter Name=tag:Env,Values=$(ENV) \
+		Name=state,Values=pending,available --query 'NatGateways[].NatGatewayId' --output text; echo
+	@printf '  Elastic IPs:    '; aws ec2 describe-addresses --filters Name=tag:Env,Values=$(ENV) \
+		--query 'Addresses[].PublicIp' --output text; echo
 
 load: ## Run a k6 load test (K6_SCRIPT=path)
 	@if [ ! -f "$(K6_SCRIPT)" ]; then echo "No k6 script at $(K6_SCRIPT) yet."; \

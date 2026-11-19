@@ -23,6 +23,16 @@ output "nat_gateway_ids" {
   value       = module.network.nat_gateway_ids
 }
 
+output "eks_cluster_name" {
+  description = "EKS cluster name (null after make down)."
+  value       = try(module.eks[0].cluster_name, null)
+}
+
+output "eks_kubeconfig_command" {
+  description = "Command to point kubectl at the cluster."
+  value       = var.enable_eks ? "aws eks update-kubeconfig --name ${local.name} --region ${var.region}" : null
+}
+
 output "nat_public_ips" {
   description = "Outbound public IPs."
   value       = module.network.nat_public_ips
