@@ -11,14 +11,16 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [x] AWS account plan checked: **Free plan**, $140 credit, ends 22 Jan 2027; region `ap-south-1`
 - [x] Free-plan service check (read-only, 19 Nov): EKS and WAF reachable; MSK and Kinesis blocked (`SubscriptionRequiredException`)
 - [x] Decision: sale-events stream = EventBridge + Kinesis, not MSK ([ADR 002](../adr/002-eventbridge-kinesis-instead-of-msk.md))
-- [ ] Paid-plan upgrade confirmed by `aws freetier get-account-plan-state` and Kinesis reachable (still FREE / blocked at last check, 19 Nov)
+- [x] Paid plan confirmed (`accountPlanType: PAID`, 19 Nov; $140 credit kept)
+- [ ] Kinesis reachable after the upgrade (still `SubscriptionRequiredException`, 19 Nov) — re-check evening + 20 Nov morning
+- [ ] EC2 vCPU quota 16 in ap-south-1 (request PENDING, 19 Nov)
 - [ ] Root user: MFA on, no access keys, never used again
 - [x] IAM user `sheshagiri-admin`; CLI login with `aws login --profile surgegate` (verified with `sts get-caller-identity`)
 - [ ] IAM user MFA confirmed
 - [ ] AWS Budgets: alerts at $15, $30 and $45 to email
 - [ ] Azure for Students account (PES email)
 - [x] GitHub repository `surgegate` (public)
-- [ ] Branch protection on `main` confirmed
+- [x] Branch protection on `main` (required check `infra-plan`, 0 approvals)
 - [ ] Razorpay account in test mode; test key ID and secret noted (not in Git)
 - [ ] Demo domain, managed in Route 53
 
@@ -40,7 +42,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [x] 1. Create the repo structure, Makefile, pre-commit hooks and a README stub
 - [x] 2. `infra/bootstrap`: S3 state bucket with versioning and native lock file; GitHub OIDC provider; `plan` (read-only) and `apply` roles
 - [x] 3. `infra-plan.yml`: on every pull request, run `terraform fmt`, `validate`, `tflint` and post the plan as a comment
-- [ ] 4. `network` module: VPC, two AZs, public/private/data subnets, one NAT, S3 and DynamoDB gateway endpoints
+- [x] 4. `network` module: VPC, two AZs, public/private/data subnets, one NAT, S3 and DynamoDB gateway endpoints
 - [ ] 5. ADR 001: why EKS, SQS for jobs + EventBridge/Kinesis for events, static buyer site
 
 **Day 2 — Fri 20 Nov**
