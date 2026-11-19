@@ -96,7 +96,7 @@ surgegate/
 - [ ] `infra/bootstrap`: S3 state bucket with versioning and native lock file; GitHub OIDC provider; `plan` (read-only) and `apply` roles.
 - [ ] `infra-plan.yml`: on every pull request, run `terraform fmt`, `validate`, `tflint` and post the plan as a comment.
 - [ ] `network` module: VPC, two AZs, public/private/data subnets, one NAT, S3 and DynamoDB gateway endpoints.
-- [ ] ADR 001: why EKS, SQS + MSK, static buyer site (copy from the blueprint).
+- [ ] ADR 001: why EKS, SQS for jobs + EventBridge/Kinesis for events, static buyer site (copy from the blueprint).
 
 **Day 2 (Fri 20 Nov)**
 
