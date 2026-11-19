@@ -1,0 +1,10 @@
+# Shared ruff settings for every Python service (booking-api, queue Lambdas, workers, consumers).
+target-version = "py312"
+line-length = 100
+
+[lint]
+# E/W pycodestyle, F pyflakes, I isort, B bugbear, UP pyupgrade, S bandit (security)
+select = ["E", "W", "F", "I", "B", "UP", "S"]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["S101"] # assert is fine in pytest

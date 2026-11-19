@@ -1,0 +1,7 @@
+# Keep LF line endings in the repo and working copy on every OS.
+# CRLF breaks Makefile recipes, shell scripts and Lambda/Docker builds.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary

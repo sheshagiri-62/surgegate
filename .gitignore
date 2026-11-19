@@ -1,0 +1,64 @@
+# ---- Terraform ----
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+# Never commit variable values (may hold secrets); commit *.tfvars.example instead
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+# The lock file IS committed (pins provider versions)
+!.terraform.lock.hcl
+
+# ---- Secrets and credentials ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+kubeconfig
+*.kubeconfig
+.aws/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+
+# ---- Lambda build artifacts ----
+*.zip
+
+# ---- Load test output ----
+tests/load/results/
+
+# ---- Editors / OS ----
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
