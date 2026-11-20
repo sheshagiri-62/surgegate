@@ -12,3 +12,4 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-19 | 1 | Task 5 — ADR 001: EKS, SQS for jobs + EventBridge/Kinesis for events, static buyer site | [task-05-adr-001](day-01/task-05-adr-001.md) |
 | 2026-11-20 | 2 | Task 1 — `eks` module: cluster, managed node group, Pod Identity, AWS Load Balancer Controller | [task-01-eks](day-02/task-01-eks.md) |
 | 2026-11-20 | 2 | Task 2 — Argo CD on EKS, root app-of-apps on `deploy/argocd` | [task-02-argocd](day-02/task-02-argocd.md) |
+| 2026-11-20 | 2 | Task 3 — ECR + `build-deploy.yml`: build, scan, push, Helm tag bump; full loop proven | [task-03-build-deploy](day-02/task-03-build-deploy.md) |
