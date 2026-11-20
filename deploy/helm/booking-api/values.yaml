@@ -1,0 +1,23 @@
+# booking-api chart values (dev).
+# image.tag is changed ONLY by .github/workflows/build-deploy.yml (git SHA of the build).
+image:
+  repository: 968077439619.dkr.ecr.ap-south-1.amazonaws.com/surgegate/booking-api
+  tag: "none" # replaced by the first build-deploy run
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+containerPort: 8000
+
+service:
+  port: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+probes:
+  path: /healthz

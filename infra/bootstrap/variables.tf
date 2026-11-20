@@ -31,6 +31,12 @@ variable "apply_subjects" {
   ]
 }
 
+variable "ecr_push_repositories" {
+  description = "ECR repositories (names) the build-deploy role may push to."
+  type        = list(string)
+  default     = ["surgegate/booking-api"]
+}
+
 variable "noncurrent_state_days" {
   description = "Days to keep old (non-current) versions of state files."
   type        = number

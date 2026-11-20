@@ -6,5 +6,8 @@ line-length = 100
 # E/W pycodestyle, F pyflakes, I isort, B bugbear, UP pyupgrade, S bandit (security)
 select = ["E", "W", "F", "I", "B", "UP", "S"]
 
+[lint.isort]
+known-first-party = ["app"] # each service's own package (services/<name>/app)
+
 [lint.per-file-ignores]
 "**/tests/**" = ["S101"] # assert is fine in pytest
