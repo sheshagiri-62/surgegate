@@ -22,6 +22,12 @@ variable "domain_name" {
   default     = ""
 }
 
+variable "enable_cloudfront" {
+  description = "CloudFront distribution in front of the ALB. false until AWS verifies the account (ADR 003)."
+  type        = bool
+  default     = false
+}
+
 variable "enable_eks" {
   description = "Hourly-billed EKS cluster + nodes on/off. make up = true, make down = false."
   type        = bool

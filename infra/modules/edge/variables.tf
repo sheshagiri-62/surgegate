@@ -13,6 +13,12 @@ variable "public_subnet_ids" {
   type        = list(string)
 }
 
+variable "cloudfront_enabled" {
+  description = "Create the CloudFront distribution. false until AWS verifies the account (ADR 003)."
+  type        = bool
+  default     = true
+}
+
 variable "origin_enabled" {
   description = "true = ALB origin exists (dev up). false = no ALB; CloudFront answers 503 at the edge."
   type        = bool

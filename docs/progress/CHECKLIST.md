@@ -50,7 +50,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [x] 1. `eks` module: cluster, managed node group, Pod Identity, AWS Load Balancer Controller
 - [x] 2. Install Argo CD on the cluster; point it at `deploy/argocd`
 - [x] 3. ECR repository; `build-deploy.yml` builds a hello-world FastAPI image, scans it, pushes it, bumps the Helm tag
-- [ ] 4. `edge` module (first part): Route 53 zone, ACM certificate, ALB ingress for `api.<domain>`
+- [ ] 4. `edge` module (first part): Route 53 zone, ACM certificate, ALB ingress for `api.<domain>` — **paused**: ALB side done; CloudFront blocked until account verification (ADR 003)
 - [ ] 5. `make up` / `make down` working for dev
 
 - [ ] **M1:** a merge to `main` deploys hello-world to EKS through Argo CD, it answers at `https://api.<domain>/healthz`, and `make down` leaves nothing billable

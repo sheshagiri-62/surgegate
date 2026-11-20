@@ -127,6 +127,7 @@ module "edge" {
   }
 
   name                   = local.name
+  cloudfront_enabled     = var.enable_cloudfront
   origin_enabled         = var.enable_eks
   vpc_id                 = module.network.vpc_id
   public_subnet_ids      = module.network.public_subnet_ids

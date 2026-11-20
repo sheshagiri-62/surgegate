@@ -1,16 +1,18 @@
 output "api_url" {
-  description = "Public HTTPS URL of the booking API."
-  value       = local.use_domain ? "https://${local.api_fqdn}" : "https://${aws_cloudfront_distribution.api.domain_name}"
+  description = "Public HTTPS URL of the booking API (null while CloudFront is disabled)."
+  value = !var.cloudfront_enabled ? null : (
+    local.use_domain ? "https://${local.api_fqdn}" : "https://${aws_cloudfront_distribution.api[0].domain_name}"
+  )
 }
 
 output "cloudfront_domain_name" {
   description = "CloudFront distribution domain (*.cloudfront.net)."
-  value       = aws_cloudfront_distribution.api.domain_name
+  value       = try(aws_cloudfront_distribution.api[0].domain_name, null)
 }
 
 output "cloudfront_distribution_id" {
   description = "CloudFront distribution ID."
-  value       = aws_cloudfront_distribution.api.id
+  value       = try(aws_cloudfront_distribution.api[0].id, null)
 }
 
 output "alb_dns_name" {

@@ -204,6 +204,7 @@ resource "aws_cloudfront_function" "origin_down" {
 }
 
 resource "aws_cloudfront_distribution" "api" {
+  count           = var.cloudfront_enabled ? 1 : 0
   enabled         = true
   is_ipv6_enabled = true
   comment         = "${var.name} booking API"
@@ -262,15 +263,15 @@ resource "aws_cloudfront_distribution" "api" {
 }
 
 resource "aws_route53_record" "api_alias" {
-  for_each = local.use_domain ? toset(["A", "AAAA"]) : toset([])
+  for_each = local.use_domain && var.cloudfront_enabled ? toset(["A", "AAAA"]) : toset([])
 
   zone_id = aws_route53_zone.this[0].zone_id
   name    = local.api_fqdn
   type    = each.key
 
   alias {
-    name                   = aws_cloudfront_distribution.api.domain_name
-    zone_id                = aws_cloudfront_distribution.api.hosted_zone_id
+    name                   = aws_cloudfront_distribution.api[0].domain_name
+    zone_id                = aws_cloudfront_distribution.api[0].hosted_zone_id
     evaluate_target_health = false
   }
 }
