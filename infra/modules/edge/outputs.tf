@@ -14,13 +14,13 @@ output "cloudfront_distribution_id" {
 }
 
 output "alb_dns_name" {
-  description = "ALB DNS name (direct requests get 403)."
-  value       = aws_lb.this.dns_name
+  description = "ALB DNS name (direct requests get 403); null while dev is down."
+  value       = try(aws_lb.this[0].dns_name, null)
 }
 
 output "target_group_name" {
   description = "Target group the booking-api TargetGroupBinding uses."
-  value       = aws_lb_target_group.api.name
+  value       = var.target_group_name
 }
 
 output "route53_name_servers" {

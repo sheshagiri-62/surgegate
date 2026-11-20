@@ -116,10 +116,10 @@ resource "aws_secretsmanager_secret_version" "origin_verify" {
   secret_string = random_password.origin_verify.result
 }
 
-# Hourly-billed ALB and the CloudFront distribution in front of it follow the EKS switch.
+# CloudFront is persistent (no hourly cost, stable *.cloudfront.net URL). Only the hourly ALB
+# side follows the EKS switch; while dev is down CloudFront answers 503 at the edge.
 module "edge" {
   source = "../../modules/edge"
-  count  = var.enable_eks ? 1 : 0
 
   providers = {
     aws           = aws
@@ -127,9 +127,10 @@ module "edge" {
   }
 
   name                   = local.name
+  origin_enabled         = var.enable_eks
   vpc_id                 = module.network.vpc_id
   public_subnet_ids      = module.network.public_subnet_ids
-  node_security_group_id = module.eks[0].node_security_group_id
+  node_security_group_id = try(module.eks[0].node_security_group_id, null)
   target_group_name      = "${local.name}-booking-api"
   origin_verify_secret   = aws_secretsmanager_secret_version.origin_verify.secret_string
   domain_name            = var.domain_name

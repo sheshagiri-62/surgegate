@@ -2,6 +2,13 @@ locals {
   tags       = merge(var.tags, { Component = "edge" })
   use_domain = var.domain_name != ""
   api_fqdn   = local.use_domain ? "${var.api_subdomain}.${var.domain_name}" : null
+
+  # The ALB side only exists while dev is up; CloudFront is persistent (no hourly cost, stable URL).
+  alb = var.origin_enabled ? 1 : 0
+
+  # While down, CloudFront still needs an origin. example.com is reserved (RFC 2606) and is never
+  # contacted: the "origin-down" function answers 503 at the edge before any origin request.
+  placeholder_origin = "example.com"
 }
 
 # ---------------------------------------------------------------------------
@@ -12,6 +19,7 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 }
 
 resource "aws_security_group" "alb" {
+  count       = local.alb
   name        = "${var.name}-alb"
   description = "ALB: HTTP from CloudFront origin-facing ranges only"
   vpc_id      = var.vpc_id
@@ -19,7 +27,8 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "alb_from_cloudfront" {
-  security_group_id = aws_security_group.alb.id
+  count             = local.alb
+  security_group_id = aws_security_group.alb[0].id
   description       = "HTTP from CloudFront (origin-facing prefix list)"
   prefix_list_id    = data.aws_ec2_managed_prefix_list.cloudfront.id
   ip_protocol       = "tcp"
@@ -28,7 +37,8 @@ resource "aws_vpc_security_group_ingress_rule" "alb_from_cloudfront" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_pods" {
-  security_group_id            = aws_security_group.alb.id
+  count                        = local.alb
+  security_group_id            = aws_security_group.alb[0].id
   description                  = "To booking-api pods"
   referenced_security_group_id = var.node_security_group_id
   ip_protocol                  = "tcp"
@@ -37,9 +47,10 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_pods" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "nodes_from_alb" {
+  count                        = local.alb
   security_group_id            = var.node_security_group_id
   description                  = "booking-api pods from the ALB"
-  referenced_security_group_id = aws_security_group.alb.id
+  referenced_security_group_id = aws_security_group.alb[0].id
   ip_protocol                  = "tcp"
   from_port                    = var.target_port
   to_port                      = var.target_port
@@ -50,16 +61,18 @@ resource "aws_vpc_security_group_ingress_rule" "nodes_from_alb" {
 # and make down removes it. Pods join the target group through a TargetGroupBinding.
 # ---------------------------------------------------------------------------
 resource "aws_lb" "this" {
+  count                      = local.alb
   name                       = "${var.name}-api"
   load_balancer_type         = "application"
   internal                   = false
   subnets                    = var.public_subnet_ids
-  security_groups            = [aws_security_group.alb.id]
+  security_groups            = [aws_security_group.alb[0].id]
   drop_invalid_header_fields = true
   tags                       = local.tags
 }
 
 resource "aws_lb_target_group" "api" {
+  count                = local.alb
   name                 = var.target_group_name
   port                 = var.target_port
   protocol             = "HTTP"
@@ -79,7 +92,8 @@ resource "aws_lb_target_group" "api" {
 }
 
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.this.arn
+  count             = local.alb
+  load_balancer_arn = aws_lb.this[0].arn
   port              = 80
   protocol          = "HTTP"
 
@@ -97,7 +111,8 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_lb_listener_rule" "from_cloudfront" {
-  listener_arn = aws_lb_listener.http.arn
+  count        = local.alb
+  listener_arn = aws_lb_listener.http[0].arn
   priority     = 10
 
   condition {
@@ -109,7 +124,7 @@ resource "aws_lb_listener_rule" "from_cloudfront" {
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.api.arn
+    target_group_arn = aws_lb_target_group.api[0].arn
   }
 
   tags = local.tags
@@ -156,7 +171,7 @@ resource "aws_acm_certificate_validation" "api" {
 }
 
 # ---------------------------------------------------------------------------
-# CloudFront in front of the ALB (HTTPS to viewers; adds the secret header to origin requests)
+# CloudFront (persistent): HTTPS to viewers; adds the secret header to origin requests.
 # ---------------------------------------------------------------------------
 data "aws_cloudfront_cache_policy" "disabled" {
   name = "Managed-CachingDisabled" # API responses are dynamic; caching comes in Phase 3 (/serving)
@@ -164,6 +179,28 @@ data "aws_cloudfront_cache_policy" "disabled" {
 
 data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
   name = "Managed-AllViewerExceptHostHeader"
+}
+
+# Attached only while the ALB doesn't exist: a clear 503 instead of a confusing 502.
+resource "aws_cloudfront_function" "origin_down" {
+  name    = "${var.name}-origin-down"
+  runtime = "cloudfront-js-2.0"
+  comment = "503 while the dev environment is down (make down)"
+  publish = true
+  code    = <<-JS
+    function handler(event) {
+      return {
+        statusCode: 503,
+        statusDescription: "Service Unavailable",
+        headers: {
+          "content-type": { value: "application/json" },
+          "cache-control": { value: "no-store" },
+          "retry-after": { value: "900" }
+        },
+        body: '{"status":"unavailable","reason":"dev environment is down (make up to start)"}'
+      };
+    }
+  JS
 }
 
 resource "aws_cloudfront_distribution" "api" {
@@ -174,8 +211,8 @@ resource "aws_cloudfront_distribution" "api" {
   aliases         = local.use_domain ? [local.api_fqdn] : []
 
   origin {
-    origin_id   = "alb"
-    domain_name = aws_lb.this.dns_name
+    origin_id   = "api"
+    domain_name = var.origin_enabled ? aws_lb.this[0].dns_name : local.placeholder_origin
 
     custom_origin_config {
       http_port              = 80
@@ -191,13 +228,21 @@ resource "aws_cloudfront_distribution" "api" {
   }
 
   default_cache_behavior {
-    target_origin_id         = "alb"
+    target_origin_id         = "api"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods           = ["GET", "HEAD"]
     cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
     compress                 = true
+
+    dynamic "function_association" {
+      for_each = var.origin_enabled ? [] : [1]
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.origin_down.arn
+      }
+    }
   }
 
   restrictions {

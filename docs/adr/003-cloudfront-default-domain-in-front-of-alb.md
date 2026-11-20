@@ -74,6 +74,17 @@ Constraints:
   ALB configuration, so the CI plan role gets `GetSecretValue` on `surgegate/*/edge/*` (it can
   already read the state).
 
+## Follow-ups
+
+- **Fix the HTTP CloudFront → ALB hop before Day 7 (payments).** Either a real domain with an ACM
+  certificate in ap-south-1 on an HTTPS ALB listener and `origin_protocol_policy = "https-only"`,
+  or CloudFront **VPC origins** with an internal ALB (no public ALB at all). Payment webhooks and
+  checkout must not cross an unencrypted hop.
+- **CloudFront is blocked until the account is verified.** On 20 Nov the first create failed:
+  `AccessDenied: Your account must be verified before you can add new CloudFront resources.`
+  An AWS Support case is needed; until then the edge module's ALB side works but there is no
+  public HTTPS URL.
+
 ## Alternatives considered
 
 | Option | Why not (now) |

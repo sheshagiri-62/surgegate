@@ -13,9 +13,16 @@ variable "public_subnet_ids" {
   type        = list(string)
 }
 
+variable "origin_enabled" {
+  description = "true = ALB origin exists (dev up). false = no ALB; CloudFront answers 503 at the edge."
+  type        = bool
+  default     = true
+}
+
 variable "node_security_group_id" {
-  description = "EKS node security group; pods (VPC CNI) receive ALB traffic through it."
+  description = "EKS node security group; pods (VPC CNI) receive ALB traffic through it. Null when down."
   type        = string
+  default     = null
 }
 
 variable "target_group_name" {

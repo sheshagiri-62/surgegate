@@ -34,13 +34,13 @@ output "eks_kubeconfig_command" {
 }
 
 output "api_url" {
-  description = "Public HTTPS URL of the booking API (null after make down)."
-  value       = try(module.edge[0].api_url, null)
+  description = "Public HTTPS URL of the booking API (stable; 503 while dev is down)."
+  value       = module.edge.api_url
 }
 
 output "alb_dns_name" {
-  description = "ALB DNS name; direct requests are refused (403)."
-  value       = try(module.edge[0].alb_dns_name, null)
+  description = "ALB DNS name; direct requests are refused (403). Null while dev is down."
+  value       = module.edge.alb_dns_name
 }
 
 output "nat_public_ips" {
