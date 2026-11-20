@@ -134,3 +134,63 @@ resource "helm_release" "lbc" {
   # Nodes, add-ons and the Pod Identity association must exist before the controller starts.
   depends_on = [module.eks, module.lbc_pod_identity]
 }
+
+# ---------------------------------------------------------------------------
+# Argo CD (GitOps): installed by Terraform, then it deploys everything under deploy/argocd
+# ---------------------------------------------------------------------------
+resource "helm_release" "argocd" {
+  name             = "argocd"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  version          = var.argocd_chart_version
+  namespace        = "argocd"
+  create_namespace = true
+
+  # Lean dev install: one replica each, no Dex (SSO) or notifications. TLS ends at the ALB
+  # later, and for now the UI is reached with kubectl port-forward.
+  values = [yamlencode({
+    dex           = { enabled = false }
+    notifications = { enabled = false }
+    configs = {
+      params = { "server.insecure" = true }
+      cm     = { "timeout.reconciliation" = "60s" } # poll Git every minute
+    }
+  })]
+
+  wait    = true
+  timeout = 600
+
+  depends_on = [module.eks, helm_release.lbc]
+}
+
+# The root "app of apps": one Application that syncs every Application manifest in
+# deploy/argocd, so adding a service is a Git commit, not a Terraform change.
+resource "helm_release" "argocd_root_app" {
+  name       = "argocd-root-app"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argocd-apps"
+  version    = var.argocd_apps_chart_version
+  namespace  = "argocd"
+
+  values = [yamlencode({
+    applications = {
+      root = {
+        namespace = "argocd"
+        project   = "default"
+        source = {
+          repoURL        = var.gitops_repo_url
+          targetRevision = var.gitops_revision
+          path           = var.gitops_path
+          directory      = { recurse = false, include = "*.yaml" }
+        }
+        destination = { server = "https://kubernetes.default.svc", namespace = "argocd" }
+        syncPolicy = {
+          automated   = { prune = true, selfHeal = true }
+          syncOptions = ["CreateNamespace=true"]
+        }
+      }
+    }
+  })]
+
+  depends_on = [helm_release.argocd] # needs the Application CRD
+}

@@ -78,6 +78,35 @@ variable "lbc_replicas" {
   default     = 1
 }
 
+variable "argocd_chart_version" {
+  description = "argo-cd Helm chart version."
+  type        = string
+  default     = "10.18.2"
+}
+
+variable "argocd_apps_chart_version" {
+  description = "argocd-apps Helm chart version (creates the root Application)."
+  type        = string
+  default     = "2.0.8"
+}
+
+variable "gitops_repo_url" {
+  description = "Git repository Argo CD watches (public, so no credentials needed)."
+  type        = string
+}
+
+variable "gitops_path" {
+  description = "Folder of Argo CD Application manifests (app of apps)."
+  type        = string
+  default     = "deploy/argocd"
+}
+
+variable "gitops_revision" {
+  description = "Branch Argo CD follows."
+  type        = string
+  default     = "main"
+}
+
 variable "tags" {
   description = "Extra tags (Project and Env come from provider default_tags)."
   type        = map(string)
