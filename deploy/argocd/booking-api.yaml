@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: booking-api
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io # deleting the app deletes its resources
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sheshagiri-62/surgegate.git
+    targetRevision: main
+    path: deploy/helm/booking-api
+    helm:
+      releaseName: booking-api
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: booking
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
