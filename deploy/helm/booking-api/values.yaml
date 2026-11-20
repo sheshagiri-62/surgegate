@@ -21,3 +21,8 @@ resources:
 
 probes:
   path: /healthz
+
+# CloudFront → ALB (Terraform) → this target group → pods. See ADR 003.
+targetGroupBinding:
+  enabled: true
+  targetGroupName: surgegate-dev-booking-api

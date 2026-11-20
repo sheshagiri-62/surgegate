@@ -1,0 +1,17 @@
+{{- if .Values.targetGroupBinding.enabled }}
+# Registers this Service's pod IPs in the ALB target group that Terraform owns (infra/modules/edge).
+# Found by name, so the ALB can be recreated by make up without changing Git. Security-group rules
+# are managed by Terraform too (networking left empty).
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "booking-api.labels" . | nindent 4 }}
+spec:
+  targetGroupName: {{ .Values.targetGroupBinding.targetGroupName }}
+  targetType: ip
+  serviceRef:
+    name: {{ .Release.Name }}
+    port: {{ .Values.service.port }}
+{{- end }}

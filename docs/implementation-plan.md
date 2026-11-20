@@ -179,6 +179,7 @@ surgegate/
 - [ ] Pre-scaling job 15 minutes before a sale; backpressure Lambda lowering the admission rate when p95 > 500 ms.
 - [ ] Argo Rollouts canary for the booking API with automatic rollback on error rate.
 - [ ] Security: GuardDuty, Security Hub, CloudTrail; ECR scan and Trivy gates; secrets rotation check.
+- [ ] Base image upgrade for the booking-api image to clear the 3 HIGH ECR findings (Day 2 scan), and raise the build-deploy gate to fail on HIGH (Trivy + ECR findings).
 - [ ] k6 runs at 10,000 then 50,000 virtual users; record join success, booking p95, oversold seats, cost.
 
 **M5 — done when:** the 50,000-user test report shows the SLOs met with zero oversold seats, and a deliberately broken release rolls back on its own.
