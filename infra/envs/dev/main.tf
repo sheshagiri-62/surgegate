@@ -75,6 +75,10 @@ module "eks" {
 
   lbc_replicas = 1
 
+  gitops_repo_url = "https://github.com/sheshagiri-62/surgegate.git"
+  gitops_path     = "deploy/argocd"
+  gitops_revision = "main"
+
   # default_tags don't reach EC2 instances/volumes launched by the node group's launch
   # template, so pass them explicitly (needed for cost-by-tag reports).
   tags = { Project = var.project, Env = local.env }
