@@ -74,4 +74,8 @@ module "eks" {
   ]
 
   lbc_replicas = 1
+
+  # default_tags don't reach EC2 instances/volumes launched by the node group's launch
+  # template, so pass them explicitly (needed for cost-by-tag reports).
+  tags = { Project = var.project, Env = local.env }
 }
