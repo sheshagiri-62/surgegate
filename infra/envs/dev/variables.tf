@@ -16,6 +16,12 @@ variable "enable_nat_gateway" {
   default     = true
 }
 
+variable "domain_name" {
+  description = "Own domain for api.<domain> (Route 53 + ACM). Empty = CloudFront *.cloudfront.net."
+  type        = string
+  default     = ""
+}
+
 variable "enable_eks" {
   description = "Hourly-billed EKS cluster + nodes on/off. make up = true, make down = false."
   type        = bool

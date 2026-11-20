@@ -12,6 +12,16 @@ provider "aws" {
   }
 }
 
+# CloudFront only accepts ACM certificates from us-east-1 (used only when domain_name is set).
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = { Project = var.project, Env = local.env }
+  }
+}
+
 # Helm talks to the cluster with a short-lived token from `aws eks get-token`
 # (AWS_PROFILE locally, OIDC role credentials in CI). Empty when the cluster is down.
 provider "helm" {
@@ -82,4 +92,45 @@ module "eks" {
   # default_tags don't reach EC2 instances/volumes launched by the node group's launch
   # template, so pass them explicitly (needed for cost-by-tag reports).
   tags = { Project = var.project, Env = local.env }
+}
+
+# ---------------------------------------------------------------------------
+# Edge: CloudFront → ALB → booking-api pods (ADR 003)
+# ---------------------------------------------------------------------------
+# The shared secret CloudFront sends and the ALB requires. Generated once and kept across
+# make down/up (Secrets Manager $0.40/month), so the value is stable between sessions.
+resource "random_password" "origin_verify" {
+  length  = 48
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "origin_verify" {
+  name                    = "${var.project}/${local.env}/edge/origin-verify"
+  description             = "Header value CloudFront sends to the ALB (X-Origin-Verify)"
+  recovery_window_in_days = 7
+  tags                    = { Component = "edge" }
+}
+
+resource "aws_secretsmanager_secret_version" "origin_verify" {
+  secret_id     = aws_secretsmanager_secret.origin_verify.id
+  secret_string = random_password.origin_verify.result
+}
+
+# Hourly-billed ALB and the CloudFront distribution in front of it follow the EKS switch.
+module "edge" {
+  source = "../../modules/edge"
+  count  = var.enable_eks ? 1 : 0
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  name                   = local.name
+  vpc_id                 = module.network.vpc_id
+  public_subnet_ids      = module.network.public_subnet_ids
+  node_security_group_id = module.eks[0].node_security_group_id
+  target_group_name      = "${local.name}-booking-api"
+  origin_verify_secret   = aws_secretsmanager_secret_version.origin_verify.secret_string
+  domain_name            = var.domain_name
 }

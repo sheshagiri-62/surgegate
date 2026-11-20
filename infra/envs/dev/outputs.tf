@@ -33,6 +33,16 @@ output "eks_kubeconfig_command" {
   value       = var.enable_eks ? "aws eks update-kubeconfig --name ${local.name} --region ${var.region}" : null
 }
 
+output "api_url" {
+  description = "Public HTTPS URL of the booking API (null after make down)."
+  value       = try(module.edge[0].api_url, null)
+}
+
+output "alb_dns_name" {
+  description = "ALB DNS name; direct requests are refused (403)."
+  value       = try(module.edge[0].alb_dns_name, null)
+}
+
 output "nat_public_ips" {
   description = "Outbound public IPs."
   value       = module.network.nat_public_ips
