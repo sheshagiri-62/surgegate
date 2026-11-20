@@ -36,36 +36,73 @@ test: ## Run unit tests for each Python service that has tests
 check-env:
 	@case "$(ENV)" in dev|demo) ;; *) echo "ENV must be dev or demo (got '$(ENV)')"; exit 1;; esac
 
-# Hourly-billed layers are switched by variables: NAT (network) and EKS (cluster, nodes, LB controller).
-# Both targets save the plan to a file and apply exactly that file. Day 2 Task 5 adds the
-# ingress clean-up step (ALBs created by the controller) before the EKS switch-off.
+# Hourly-billed layers are switched by Terraform variables:
+#   enable_nat_gateway (NAT + EIP) and enable_eks (cluster, nodes, LB controller, Argo CD, ALB).
+# Persistent and free/near-free (kept by make down): VPC, subnets, endpoints, ECR, secrets,
+# CloudFront (when enabled), state bucket, CI roles.
+# Both targets save the plan to a file and apply exactly that file.
 UP_PLAN   := $(ENV_DIR)/up.tfplan
 DOWN_PLAN := $(ENV_DIR)/down.tfplan
 CLUSTER   := surgegate-$(ENV)
+TF_LOCK   := -lock-timeout=5m
+APPROVE   ?=
 
-up: check-env ## Create the ENV environment: shows the plan, asks "yes" before applying
+.PHONY: billing-check
+
+up: check-env ## Create ENV: plan, ask "yes" (or APPROVE=yes), apply, kubeconfig, wait for Argo CD apps
 	terraform -chdir=$(ENV_DIR) init -input=false
-	terraform -chdir=$(ENV_DIR) plan -input=false -var=enable_nat_gateway=true -var=enable_eks=true -out=up.tfplan
-	@printf 'Apply this plan? It creates HOURLY-billed resources (NAT, EKS, nodes). Type yes: '; \
-		read ans; [ "$$ans" = "yes" ] || { echo "Not applied."; rm -f $(UP_PLAN); exit 1; }
-	terraform -chdir=$(ENV_DIR) apply -input=false up.tfplan
+	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=true -var=enable_eks=true -out=up.tfplan
+	@if [ "$(APPROVE)" != "yes" ]; then \
+		printf 'Apply this plan? It creates HOURLY-billed resources (NAT, EKS, nodes, ALB). Type yes: '; \
+		read ans; [ "$$ans" = "yes" ] || { echo "Not applied."; rm -f $(UP_PLAN); exit 1; }; fi
+	terraform -chdir=$(ENV_DIR) apply -input=false $(TF_LOCK) up.tfplan
 	@rm -f $(UP_PLAN)
-	aws eks update-kubeconfig --name $(CLUSTER) --region $(AWS_REGION)
+	aws eks update-kubeconfig --name $(CLUSTER) --region $(AWS_REGION) --alias $(CLUSTER)
+	@echo "Waiting for Argo CD to sync every app from Git (max 10 min)..."
+	@for i in $$(seq 1 60); do \
+		bad=$$(kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.metadata.name}={.status.sync.status}/{.status.health.status}{"\n"}{end}' 2>/dev/null | grep -v '=Synced/Healthy' | grep .); \
+		[ -z "$$bad" ] && kubectl get applications -n argocd >/dev/null 2>&1 && { echo "All Argo CD apps Synced/Healthy."; break; }; \
+		[ $$i -eq 60 ] && { echo "Not healthy yet:"; echo "$$bad"; }; sleep 10; done
+	@terraform -chdir=$(ENV_DIR) output
 
-down: check-env ## Remove the hourly-billed parts of ENV (EKS + nodes, NAT + Elastic IP); free VPC stays
+down: check-env ## Remove everything hourly in ENV (EKS, nodes, ALB, NAT, EIP); free VPC stays; then billing-check
+	@# Load balancers made by the LB controller for an Ingress or a LoadBalancer Service are not in
+	@# Terraform state; delete those objects first so the controller removes them (none expected:
+	@# our ALB is Terraform-owned, ADR 003).
+	@if aws eks describe-cluster --name $(CLUSTER) --region $(AWS_REGION) >/dev/null 2>&1; then \
+		aws eks update-kubeconfig --name $(CLUSTER) --region $(AWS_REGION) --alias $(CLUSTER) >/dev/null; \
+		echo "Deleting Ingresses and LoadBalancer Services (controller-made load balancers)..."; \
+		kubectl delete ingress --all --all-namespaces --wait=true --timeout=5m; \
+		kubectl get svc -A -o jsonpath='{range .items[?(@.spec.type=="LoadBalancer")]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' \
+			| while read ns n; do [ -n "$$n" ] && kubectl delete svc -n "$$ns" "$$n" --wait=true --timeout=5m; done; \
+	fi
 	terraform -chdir=$(ENV_DIR) init -input=false
-	terraform -chdir=$(ENV_DIR) plan -input=false -var=enable_nat_gateway=false -var=enable_eks=false -out=down.tfplan
-	terraform -chdir=$(ENV_DIR) apply -input=false down.tfplan
+	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=false -var=enable_eks=false -out=down.tfplan
+	terraform -chdir=$(ENV_DIR) apply -input=false $(TF_LOCK) down.tfplan
 	@rm -f $(DOWN_PLAN)
-	@echo "Still billing by the hour in $(ENV) (every list below should be empty):"
-	@printf '  EKS clusters:   '; aws eks list-clusters --query 'clusters[?@==`$(CLUSTER)`]' --output text; echo
-	@printf '  EC2 instances:  '; aws ec2 describe-instances --filters Name=tag:eks:cluster-name,Values=$(CLUSTER) \
-		Name=instance-state-name,Values=pending,running --query 'Reservations[].Instances[].InstanceId' --output text; echo
-	@printf '  Load balancers: '; aws elbv2 describe-load-balancers --query 'LoadBalancers[].LoadBalancerName' --output text; echo
-	@printf '  NAT gateways:   '; aws ec2 describe-nat-gateways --filter Name=tag:Env,Values=$(ENV) \
-		Name=state,Values=pending,available --query 'NatGateways[].NatGatewayId' --output text; echo
-	@printf '  Elastic IPs:    '; aws ec2 describe-addresses --filters Name=tag:Env,Values=$(ENV) \
-		--query 'Addresses[].PublicIp' --output text; echo
+	@$(MAKE) --no-print-directory billing-check ENV=$(ENV)
+
+billing-check: check-env ## List everything in ENV that bills by the hour (all lists empty = nothing running)
+	@echo "Billing by the hour in $(ENV) (every list should be empty after make down):"
+	@VPC=$$(aws ec2 describe-vpcs --filters Name=tag:Env,Values=$(ENV) Name=tag:Component,Values=network \
+		--query 'Vpcs[0].VpcId' --output text); \
+	EKS=$$(aws eks list-clusters --query 'clusters[?@==`$(CLUSTER)`]' --output text); \
+	EC2=$$(aws ec2 describe-instances --filters Name=vpc-id,Values=$$VPC \
+		Name=instance-state-name,Values=pending,running --query 'Reservations[].Instances[].InstanceId' --output text); \
+	LB=$$(aws elbv2 describe-load-balancers --query "LoadBalancers[?VpcId=='$$VPC'].LoadBalancerName" --output text); \
+	NAT=$$(aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=$$VPC \
+		Name=state,Values=pending,available,deleting --query 'NatGateways[].NatGatewayId' --output text); \
+	EIP=$$(aws ec2 describe-addresses --query 'Addresses[].PublicIp' --output text); \
+	ENI=$$(aws ec2 describe-network-interfaces --filters Name=vpc-id,Values=$$VPC \
+		--query 'NetworkInterfaces[?Association.PublicIp].Association.PublicIp' --output text); \
+	echo "  EKS clusters:     $$EKS"; \
+	echo "  EC2 instances:    $$EC2"; \
+	echo "  Load balancers:   $$LB"; \
+	echo "  NAT gateways:     $$NAT"; \
+	echo "  Elastic IPs:      $$EIP"; \
+	echo "  Public IPv4 ENIs: $$ENI"; \
+	if [ -z "$$EKS$$EC2$$LB$$NAT$$EIP$$ENI" ]; then echo "  => nothing billable by the hour is running."; \
+	else echo "  => STILL RUNNING: run make down (or check the console)."; fi
 
 load: ## Run a k6 load test (K6_SCRIPT=path)
 	@if [ ! -f "$(K6_SCRIPT)" ]; then echo "No k6 script at $(K6_SCRIPT) yet."; \
