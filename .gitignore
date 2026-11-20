@@ -18,6 +18,8 @@ terraform.rc
 !*.tfvars.example
 # The lock file IS committed (pins provider versions)
 !.terraform.lock.hcl
+# Helm provider's private repo list and chart cache (infra/envs/*/.helm)
+.helm/
 
 # ---- Secrets and credentials ----
 .env

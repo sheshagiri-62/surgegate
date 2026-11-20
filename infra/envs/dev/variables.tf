@@ -15,3 +15,15 @@ variable "enable_nat_gateway" {
   type        = bool
   default     = true
 }
+
+variable "enable_eks" {
+  description = "Hourly-billed EKS cluster + nodes on/off. make up = true, make down = false."
+  type        = bool
+  default     = true
+
+  validation {
+    # Nodes pull images and reach AWS APIs through the NAT; without it they never join.
+    condition     = !var.enable_eks || var.enable_nat_gateway
+    error_message = "enable_eks = true needs enable_nat_gateway = true."
+  }
+}
