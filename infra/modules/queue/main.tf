@@ -33,6 +33,16 @@ locals {
       timeout = 5
       memory  = 256
     }
+    valve = {
+      handler = "sg_queue.valve.handler"
+      timeout = 30
+      memory  = 256
+    }
+  }
+  # Functions run every minute by EventBridge Scheduler.
+  scheduled = {
+    starter = "Open waiting rooms at sale start (pre-queue shuffle)"
+    valve   = "Admission valve: raise serving_up_to by the admission rate"
   }
   # Functions behind API Gateway routes. serving is public: one number, the same for everyone
   # (cacheable at CloudFront); everything else needs a Cognito access token.
@@ -166,6 +176,15 @@ data "aws_iam_policy_document" "fn" {
       sid       = "ReadTokenKey"
       actions   = ["secretsmanager:GetSecretValue"]
       resources = [aws_secretsmanager_secret.token_key.arn]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = each.key == "valve" ? [1] : []
+    content {
+      sid       = "AdvanceServing"
+      actions   = ["dynamodb:Query", "dynamodb:UpdateItem"]
+      resources = [var.table_arn, "${var.table_arn}/index/active-queues"]
     }
   }
 
@@ -343,7 +362,7 @@ resource "aws_iam_role" "scheduler" {
 data "aws_iam_policy_document" "scheduler" {
   statement {
     actions   = ["lambda:InvokeFunction"]
-    resources = [aws_lambda_function.fn["starter"].arn]
+    resources = [for k in keys(local.scheduled) : aws_lambda_function.fn[k].arn]
   }
 }
 
@@ -353,9 +372,10 @@ resource "aws_iam_role_policy" "scheduler" {
   policy = data.aws_iam_policy_document.scheduler.json
 }
 
-resource "aws_scheduler_schedule" "starter" {
-  name                         = "${var.name}-queue-starter"
-  description                  = "Open waiting rooms at sale start (pre-queue shuffle)"
+resource "aws_scheduler_schedule" "tick" {
+  for_each                     = local.scheduled
+  name                         = "${var.name}-queue-${each.key}"
+  description                  = each.value
   schedule_expression          = "rate(1 minute)"
   schedule_expression_timezone = "UTC"
   state                        = var.schedules_enabled ? "ENABLED" : "DISABLED"
@@ -365,7 +385,7 @@ resource "aws_scheduler_schedule" "starter" {
   }
 
   target {
-    arn      = aws_lambda_function.fn["starter"].arn
+    arn      = aws_lambda_function.fn[each.key].arn
     role_arn = aws_iam_role.scheduler.arn
     retry_policy {
       maximum_retry_attempts       = 0 # the next minute's run is the retry
@@ -402,4 +422,9 @@ resource "aws_secretsmanager_secret_version" "token_key" {
 moved {
   from = aws_apigatewayv2_route.join
   to   = aws_apigatewayv2_route.fn["join"]
+}
+
+moved {
+  from = aws_scheduler_schedule.starter
+  to   = aws_scheduler_schedule.tick["starter"]
 }

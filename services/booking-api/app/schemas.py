@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -73,3 +74,31 @@ class HoldOut(BaseModel):
     expires_at: datetime
     seats: list[HeldSeat]
     amount_paise: int
+
+
+class QueueOpen(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    admission_rate: int = Field(ge=1, le=10_000, description="buyers let in per minute")
+
+
+class QueueChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["pause", "resume"] | None = None
+    admission_rate: int | None = Field(default=None, ge=0, le=10_000)
+
+    @model_validator(mode="after")
+    def something_to_do(self) -> QueueChange:
+        if self.action is None and self.admission_rate is None:
+            raise ValueError("give an action (pause/resume) or an admission_rate")
+        return self
+
+
+class QueueState(BaseModel):
+    status: str
+    admission_rate: int
+    sale_starts_at: datetime
+    in_line: int
+    admitted: int
+    waiting: int

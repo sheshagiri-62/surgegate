@@ -55,6 +55,13 @@ data "aws_iam_policy_document" "booking_api" {
     resources = [module.data.redis_auth_secret_arn]
   }
 
+  # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
+  statement {
+    sid       = "WaitingRoomControls"
+    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+    resources = [module.data.queue_table_arn]
+  }
+
   # The master secret is encrypted with the data KMS key; decrypt only through Secrets Manager.
   statement {
     sid       = "DecryptSecretsViaSecretsManager"

@@ -44,7 +44,36 @@ def migrated_engine(alembic_cfg):
 
 
 @pytest.fixture
-def api(migrated_engine, monkeypatch):
+def queue_table(monkeypatch):
+    """A moto DynamoDB queue table (the waiting room's state; the real one is in AWS)."""
+    import boto3
+    from moto import mock_aws
+
+    from app import queue_control
+
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("QUEUE_TABLE", "queue-test")
+    with mock_aws():
+        boto3.resource("dynamodb", region_name="ap-south-1").create_table(
+            TableName="queue-test",
+            KeySchema=[
+                {"AttributeName": "PK", "KeyType": "HASH"},
+                {"AttributeName": "SK", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "PK", "AttributeType": "S"},
+                {"AttributeName": "SK", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        queue_control.table.cache_clear()
+        yield queue_control.table()
+        queue_control.table.cache_clear()
+
+
+@pytest.fixture
+def api(migrated_engine, monkeypatch, queue_table):
     """The real app, real JWT checks (local signing key) and the test database."""
     from fastapi.testclient import TestClient
     from sqlalchemy.orm import sessionmaker

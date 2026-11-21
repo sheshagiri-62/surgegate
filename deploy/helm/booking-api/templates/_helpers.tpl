@@ -16,6 +16,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.aws.region | quote }}
 - name: DB_INSTANCE_ID
   value: {{ .Values.database.instanceId | quote }}
+- name: QUEUE_TABLE
+  value: {{ .Values.queue.table | quote }}
 {{- end -}}
 
 

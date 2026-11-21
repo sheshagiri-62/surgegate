@@ -59,3 +59,7 @@ redis:
 cors:
   allowOrigins:
     - http://localhost:3000
+
+# Waiting-room state (organiser controls write the queue's META item).
+queue:
+  table: surgegate-dev-queue
