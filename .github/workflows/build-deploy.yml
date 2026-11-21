@@ -33,6 +33,20 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.SERVICE_DIR }}
+    services:
+      postgres: # integration tests (same as ci.yml)
+        image: postgres:18
+        env:
+          POSTGRES_USER: surgegate
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: surgegate_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U surgegate"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://surgegate:ci-only-not-a-secret@localhost:5432/surgegate_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -42,7 +56,7 @@ jobs:
           cache-dependency-path: ${{ env.SERVICE_DIR }}/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - run: ruff check . && ruff format --check .
-      - run: pytest -q
+      - run: pytest -q -ra
 
   build-push:
     name: Build, scan, push
