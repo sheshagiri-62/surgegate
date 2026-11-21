@@ -41,3 +41,29 @@ def migrated_engine(alembic_cfg):
     engine = make_engine(os.environ["DATABASE_URL"])
     yield engine
     engine.dispose()
+
+
+@pytest.fixture
+def api(migrated_engine, monkeypatch):
+    """The real app, real JWT checks (local signing key) and the test database."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+    from tests.helpers import SETTINGS, FakeJwks
+
+    from app import auth, db
+    from app.main import app
+
+    factory = sessionmaker(bind=migrated_engine, expire_on_commit=False)
+
+    def session():
+        s = factory()
+        try:
+            yield s
+        finally:
+            s.close()
+
+    monkeypatch.setattr(auth, "_jwks_client", lambda url: FakeJwks())
+    app.dependency_overrides[auth.get_auth_settings] = lambda: SETTINGS
+    app.dependency_overrides[db.get_session] = session
+    yield TestClient(app)
+    app.dependency_overrides.clear()

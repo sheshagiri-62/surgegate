@@ -61,7 +61,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [x] 1. `data` module: RDS PostgreSQL (single-AZ in dev), ElastiCache Redis, S3 buckets, KMS key, Secrets Manager entries (snapshot-restore check pending next `make up`)
 - [x] 2. Booking API: SQLAlchemy models and Alembic migrations for tenants, events, seats, holds, orders, order_items
-- [ ] 3. Cognito user pool with buyer and organiser groups; JWT checks in FastAPI
+- [x] 3. Cognito user pool with buyer and organiser groups; JWT checks in FastAPI
 - [ ] 4. Organiser endpoints: create event, upload seat map (CSV), list events — tenant-scoped
 
 **Day 4 — Sun 22 Nov**
