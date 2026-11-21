@@ -22,6 +22,18 @@ variable "domain_name" {
   default     = ""
 }
 
+variable "enable_data" {
+  description = "Hourly-billed RDS + ElastiCache on/off. make up = true, make down = false (RDS final snapshot kept)."
+  type        = bool
+  default     = true
+}
+
+variable "restore_snapshot_id" {
+  description = "RDS snapshot to restore on make up (the newest final snapshot; looked up by the Makefile). Empty = fresh DB."
+  type        = string
+  default     = ""
+}
+
 variable "enable_cloudfront" {
   description = "CloudFront distribution in front of the ALB. false until AWS verifies the account (ADR 003)."
   type        = bool

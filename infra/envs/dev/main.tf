@@ -136,3 +136,25 @@ module "edge" {
   origin_verify_secret   = aws_secretsmanager_secret_version.origin_verify.secret_string
   domain_name            = var.domain_name
 }
+
+# ---------------------------------------------------------------------------
+# Data: RDS PostgreSQL + ElastiCache Redis (hourly, follow enable_data) and
+# KMS, S3, secrets, subnet groups, SGs (persistent). RDS survives make down as a final snapshot.
+# ---------------------------------------------------------------------------
+module "data" {
+  source = "../../modules/data"
+
+  name            = local.name
+  secrets_prefix  = "${var.project}/${local.env}"
+  vpc_id          = module.network.vpc_id
+  data_subnet_ids = module.network.data_subnet_ids
+
+  compute_enabled           = var.enable_data
+  client_security_group_ids = var.enable_eks ? [module.eks[0].node_security_group_id] : []
+  restore_snapshot_id       = var.restore_snapshot_id
+
+  pg_instance_class = "db.t4g.micro"
+  pg_multi_az       = false # dev: single-AZ (demo: Multi-AZ)
+  redis_node_type   = "cache.t4g.micro"
+  redis_replicas    = 0 # dev: 1 node (demo: primary + replica)
+}
