@@ -9,6 +9,11 @@ PRE_COMMIT ?= pre-commit
 K6_SCRIPT  ?= tests/load/k6/sale.js
 
 export AWS_PROFILE AWS_REGION
+# The helm provider runs infra/scripts/eks-token.sh with this shell (absolute path: on Windows a
+# bare "bash" may resolve to the WSL stub instead of Git Bash/MSYS). cygpath turns the MSYS path
+# into one terraform.exe can run; on Linux/macOS (no cygpath) the plain path is used.
+BASH_PATH := $(shell command -v bash)
+export TF_VAR_token_shell := $(shell cygpath -m '$(BASH_PATH)' 2>/dev/null || echo '$(BASH_PATH)')
 
 .DEFAULT_GOAL := help
 .PHONY: help init fmt lint test up down load check-env
