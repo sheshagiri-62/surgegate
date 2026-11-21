@@ -28,11 +28,18 @@ locals {
       timeout = 10
       memory  = 256
     }
+    serving = {
+      handler = "sg_queue.serving.handler"
+      timeout = 5
+      memory  = 256
+    }
   }
-  # Functions behind API Gateway routes.
+  # Functions behind API Gateway routes. serving is public: one number, the same for everyone
+  # (cacheable at CloudFront); everything else needs a Cognito access token.
   routes = {
-    join     = "POST /queue/{event}/join"
-    position = "GET /queue/{event}/position"
+    join     = { key = "POST /queue/{event}/join", auth = true }
+    position = { key = "GET /queue/{event}/position", auth = true }
+    serving  = { key = "GET /queue/{event}/serving", auth = false }
   }
 }
 
@@ -131,6 +138,15 @@ data "aws_iam_policy_document" "fn" {
     content {
       sid       = "ClaimPlacesAndWritePositions"
       actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+      resources = [var.table_arn]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = each.key == "serving" ? [1] : []
+    content {
+      sid       = "ReadQueueState"
+      actions   = ["dynamodb:GetItem"]
       resources = [var.table_arn]
     }
   }
@@ -252,10 +268,10 @@ resource "aws_apigatewayv2_integration" "fn" {
 resource "aws_apigatewayv2_route" "fn" {
   for_each           = local.routes
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = each.value
+  route_key          = each.value.key
   target             = "integrations/${aws_apigatewayv2_integration.fn[each.key].id}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = each.value.auth ? "JWT" : "NONE"
+  authorizer_id      = each.value.auth ? aws_apigatewayv2_authorizer.cognito.id : null
 }
 
 resource "aws_cloudwatch_log_group" "api" {
