@@ -87,10 +87,10 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [x] 1. `valve` Lambda on EventBridge Scheduler raising "serving N" by the admission rate; pause and resume
 - [x] 2. `admit` endpoint issuing a 15-minute booking pass; CloudFront Function checking it on `/book/*` — booking API checks the pass; **CloudFront Function check pending CloudFront verification**
-- [ ] 3. Buyer waiting-room page: countdown, position, estimated wait, automatic redirect when admitted
-- [ ] 4. k6 script: 1,000 virtual users join, wait and get admitted
+- [x] 3. Buyer waiting-room page: countdown, position, estimated wait, automatic redirect when admitted
+- [x] 4. k6 script: 1,000 virtual users join, wait and get admitted — run: 977/1,000 joined (Lambda concurrency 10), all 977 admitted; re-run after quota increase
 
-- [ ] **M3:** 1,000 simulated buyers join, the pre-queue is shuffled, they are admitted at the set rate, and `/book/*` without a valid pass is refused at the edge
+- [ ] **M3:** 1,000 simulated buyers join, the pre-queue is shuffled, they are admitted at the set rate, and `/book/*` without a valid pass is refused at the edge — **partly met** ([phase-3-milestone](phase-3-milestone.md)): edge refusal pending CloudFront verification; 977/1,000 joined (Lambda quota)
 
 ## Phase 4 — Checkout and live events (Days 7–8) → M4
 

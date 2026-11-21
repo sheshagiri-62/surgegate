@@ -67,3 +67,6 @@ Thumbs.db
 
 # Lambda zips built by Terraform (archive_file)
 infra/modules/*/.build/
+
+# k6 load-test tokens (short-lived, written by tests/load/k6/load_users.py)
+.load_tokens.json
