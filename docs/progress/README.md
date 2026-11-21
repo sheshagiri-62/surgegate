@@ -29,3 +29,5 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-21 | 5 | Task 2 — One place per account (conditional write) + pre-queue shuffle at sale start (starter on a 1-minute schedule) | [task-02-fairness](day-05/task-02-fairness.md) |
 | 2026-11-21 | 5 | Task 3 — `position` endpoint + signed queue token (HMAC; key in Secrets Manager, never in state) | [task-03-position-token](day-05/task-03-position-token.md) |
 | 2026-11-21 | 5 | Task 4 — `serving` endpoint (public, API Gateway; CloudFront 5 s cache pending verification) | [task-04-serving](day-05/task-04-serving.md) |
+| 2026-11-22 | 6 | Task 1 — Valve Lambda (every minute, admission rate) + organiser pause/resume/rate | [task-01-valve](day-06/task-01-valve.md) |
+| 2026-11-22 | 6 | Task 2 — Admit → 15-minute booking pass; booking API verifies it (CloudFront check pending) | [task-02-admit-pass](day-06/task-02-admit-pass.md) |

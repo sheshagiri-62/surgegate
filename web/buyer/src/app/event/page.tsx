@@ -1,12 +1,13 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import SeatPicker from "@/components/SeatPicker";
 import SignIn from "@/components/SignIn";
-import { ApiError, getSeatMap, holdSeats, type Hold } from "@/lib/api";
+import { ApiError, getSeatMap, holdSeats, needsQueue, type Hold } from "@/lib/api";
 import { loadTokens, signOut, type Tokens } from "@/lib/cognito";
+import { clearPass, loadPass } from "@/lib/queue";
 import {
   countdown,
   formatInr,
@@ -20,6 +21,12 @@ const REFRESH_MS = 2000; // the API's cache TTL; taken seats grey out within ~2 
 
 function EventPage() {
   const eventId = useSearchParams().get("id") ?? "";
+  const router = useRouter();
+  // No valid booking pass for this event: back to the waiting room.
+  const toQueue = useCallback(() => {
+    clearPass(eventId);
+    router.push(`/queue/?id=${eventId}`);
+  }, [router, eventId]);
   // This page renders only in the browser (useSearchParams in a static export), so reading
   // sessionStorage in the initializer is safe.
   const [tokens, setTokens] = useState<Tokens | null>(() => loadTokens());
@@ -37,19 +44,23 @@ function EventPage() {
 
   const refresh = useCallback(async () => {
     if (!tokens || !eventId) return;
+    const bookingPass = loadPass(eventId);
+    if (!bookingPass) return toQueue();
     try {
-      const m = await getSeatMap(eventId, tokens.accessToken);
+      const m = await getSeatMap(eventId, tokens.accessToken, bookingPass.booking_pass);
       setMap(m);
       setSelected((sel) => pruneSelection(sel, m.seats));
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
+      if (needsQueue(err)) {
+        toQueue();
+      } else if (err instanceof ApiError && err.status === 401) {
         signOut();
         setTokens(null);
       } else {
         setMessage(err instanceof Error ? err.message : String(err));
       }
     }
-  }, [tokens, eventId]);
+  }, [tokens, eventId, toQueue]);
 
   useEffect(() => {
     const first = setTimeout(() => void refresh(), 0);
@@ -62,13 +73,17 @@ function EventPage() {
 
   async function onHold() {
     if (!tokens || !map) return;
+    const bookingPass = loadPass(eventId);
+    if (!bookingPass) return toQueue();
     setBusy(true);
     setMessage("");
     try {
-      setHold(await holdSeats(eventId, selected, tokens.accessToken));
+      setHold(await holdSeats(eventId, selected, tokens.accessToken, bookingPass.booking_pass));
       setSelected([]);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409 && Array.isArray(err.body.unavailable)) {
+      if (needsQueue(err)) {
+        toQueue();
+      } else if (err instanceof ApiError && err.status === 409 && Array.isArray(err.body.unavailable)) {
         const gone = new Set(err.body.unavailable as string[]);
         const labels = map.seats.filter((s) => gone.has(s.id)).map((s) => s.label);
         setMessage(`Someone just took ${labels.join(", ") || "that seat"}. Pick another.`);

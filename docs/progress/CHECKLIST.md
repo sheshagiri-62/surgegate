@@ -85,8 +85,8 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 **Day 6 — Tue 24 Nov**
 
-- [ ] 1. `valve` Lambda on EventBridge Scheduler raising "serving N" by the admission rate; pause and resume
-- [ ] 2. `admit` endpoint issuing a 15-minute booking pass; CloudFront Function checking it on `/book/*`
+- [x] 1. `valve` Lambda on EventBridge Scheduler raising "serving N" by the admission rate; pause and resume
+- [x] 2. `admit` endpoint issuing a 15-minute booking pass; CloudFront Function checking it on `/book/*` — booking API checks the pass; **CloudFront Function check pending CloudFront verification**
 - [ ] 3. Buyer waiting-room page: countdown, position, estimated wait, automatic redirect when admitted
 - [ ] 4. k6 script: 1,000 virtual users join, wait and get admitted
 

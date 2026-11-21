@@ -22,7 +22,7 @@ if _origins:
         CORSMiddleware,
         allow_origins=_origins,
         allow_methods=["GET", "POST", "PUT"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "X-Booking-Pass"],
         allow_credentials=False,  # bearer tokens, no cookies
         max_age=600,
     )

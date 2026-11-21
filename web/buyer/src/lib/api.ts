@@ -21,7 +21,10 @@ async function request<T>(path: string, token: string, init: RequestInit = {}): 
     cache: "no-store",
   });
   const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new ApiError(r.status, String(body.detail ?? `HTTP ${r.status}`), body);
+  if (!r.ok) {
+    const detail = typeof body.detail === "object" ? body.detail.reason : body.detail;
+    throw new ApiError(r.status, String(detail ?? `HTTP ${r.status}`), body);
+  }
   return body as T;
 }
 
@@ -32,14 +35,27 @@ export interface Hold {
   amount_paise: number;
 }
 
-export function getSeatMap(eventId: string, token: string): Promise<SeatMap> {
-  return request<SeatMap>(`/book/${eventId}/seats`, token);
+// Every /book/{event}/... call carries the waiting room's booking pass.
+const passHeader = (bookingPass: string) => ({ "X-Booking-Pass": bookingPass });
+
+/** True when the API refused because the booking pass is missing, expired or invalid. */
+export function needsQueue(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 403 && typeof err.body.detail === "object";
 }
 
-export function holdSeats(eventId: string, seatIds: string[], token: string): Promise<Hold> {
+export function getSeatMap(eventId: string, token: string, bookingPass: string): Promise<SeatMap> {
+  return request<SeatMap>(`/book/${eventId}/seats`, token, { headers: passHeader(bookingPass) });
+}
+
+export function holdSeats(
+  eventId: string,
+  seatIds: string[],
+  token: string,
+  bookingPass: string,
+): Promise<Hold> {
   return request<Hold>(`/book/${eventId}/holds`, token, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...passHeader(bookingPass) },
     body: JSON.stringify({ seat_ids: seatIds }),
   });
 }
