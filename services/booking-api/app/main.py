@@ -8,12 +8,13 @@ import os
 from fastapi import FastAPI
 
 from app.auth import AnyUser
-from app.routes import organiser
+from app.routes import buyer, organiser
 
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 
 app = FastAPI(title="SurgeGate booking API", version=APP_VERSION)
 app.include_router(organiser.router)
+app.include_router(buyer.router)
 
 
 @app.get("/healthz")

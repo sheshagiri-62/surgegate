@@ -15,6 +15,7 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app import cache
 from app.auth import Organiser
 from app.db import get_session
 from app.models import Event, Seat, SeatStatus, Tenant
@@ -138,5 +139,6 @@ async def upload_seat_map(event_id: uuid.UUID, request: Request, org: Organiser,
         ],
     )
     db.commit()
+    cache.invalidate_seat_map(str(event.id))
     zones = _zones(db, [event.id]).get(event.id, [])
     return SeatMapUploaded(event_id=event.id, seat_count=len(seats), zones=zones)

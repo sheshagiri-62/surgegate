@@ -49,3 +49,8 @@ auth:
     - aaaemg3vc5gjrerk026jh5r9e # buyer-web
     - 4r1b379rs37m8mq284e35esfha # organiser-web
     - 7jf95pjsnjqg043d0ing7rngv5 # test (dev scripts)
+
+# ElastiCache Redis (seat-map cache). The primary endpoint name is stable across make down/up.
+redis:
+  host: master.surgegate-dev-redis.cr9kvu.aps1.cache.amazonaws.com
+  authSecretId: surgegate/dev/data/redis-auth

@@ -50,7 +50,7 @@ def api(migrated_engine, monkeypatch):
     from sqlalchemy.orm import sessionmaker
     from tests.helpers import SETTINGS, FakeJwks
 
-    from app import auth, db
+    from app import auth, cache, db
     from app.main import app
 
     factory = sessionmaker(bind=migrated_engine, expire_on_commit=False)
@@ -63,6 +63,9 @@ def api(migrated_engine, monkeypatch):
             s.close()
 
     monkeypatch.setattr(auth, "_jwks_client", lambda url: FakeJwks())
+    cache.get_redis.cache_clear()
+    if r := cache.get_redis():
+        r.flushdb()
     app.dependency_overrides[auth.get_auth_settings] = lambda: SETTINGS
     app.dependency_overrides[db.get_session] = session
     yield TestClient(app)
