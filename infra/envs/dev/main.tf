@@ -136,6 +136,8 @@ module "edge" {
   target_group_name      = "${local.name}-booking-api"
   origin_verify_secret   = aws_secretsmanager_secret_version.origin_verify.secret_string
   domain_name            = var.domain_name
+  # /queue/* -> API Gateway, /queue/*/serving cached 5 s (pending CloudFront verification)
+  queue_api_domain = trimprefix(module.queue.api_endpoint, "https://")
 }
 
 # ---------------------------------------------------------------------------

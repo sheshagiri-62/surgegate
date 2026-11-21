@@ -83,3 +83,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "queue_api_domain" {
+  description = "Waiting-room API Gateway host (xxx.execute-api.<region>.amazonaws.com); empty = no /queue/* behaviours."
+  type        = string
+  default     = ""
+}

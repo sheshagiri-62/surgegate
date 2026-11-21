@@ -181,6 +181,32 @@ data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
   name = "Managed-AllViewerExceptHostHeader"
 }
 
+# Waiting room "now serving" counter: identical for everyone, so cache it for 5 seconds at the
+# edge (blueprint step 5: 5,000 polls a second become a handful of origin calls).
+# PENDING CloudFront verification: created only when cloudfront_enabled.
+resource "aws_cloudfront_cache_policy" "serving" {
+  count       = var.cloudfront_enabled && var.queue_api_domain != "" ? 1 : 0
+  name        = "${var.name}-queue-serving-5s"
+  comment     = "GET /queue/{event}/serving: shared counter, 5 s"
+  min_ttl     = 0
+  default_ttl = 5
+  max_ttl     = 5
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    enable_accept_encoding_gzip   = true
+    enable_accept_encoding_brotli = true
+    cookies_config {
+      cookie_behavior = "none"
+    }
+    headers_config {
+      header_behavior = "none" # no Authorization: the counter is public and the same for all
+    }
+    query_strings_config {
+      query_string_behavior = "none"
+    }
+  }
+}
+
 # Attached only while the ALB doesn't exist: a clear 503 instead of a confusing 502.
 resource "aws_cloudfront_function" "origin_down" {
   name    = "${var.name}-origin-down"
@@ -225,6 +251,49 @@ resource "aws_cloudfront_distribution" "api" {
     custom_header {
       name  = var.origin_verify_header_name
       value = var.origin_verify_secret
+    }
+  }
+
+  # Waiting room API (API Gateway), same origin as the site for browsers.
+  dynamic "origin" {
+    for_each = var.queue_api_domain != "" ? [1] : []
+    content {
+      origin_id   = "queue"
+      domain_name = var.queue_api_domain
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
+  # Most specific first: the cached counter, then the rest of the queue API (never cached).
+  dynamic "ordered_cache_behavior" {
+    for_each = var.queue_api_domain != "" ? [1] : []
+    content {
+      path_pattern           = "/queue/*/serving"
+      target_origin_id       = "queue"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      cache_policy_id        = aws_cloudfront_cache_policy.serving[0].id
+      compress               = true
+    }
+  }
+
+  dynamic "ordered_cache_behavior" {
+    for_each = var.queue_api_domain != "" ? [1] : []
+    content {
+      path_pattern             = "/queue/*"
+      target_origin_id         = "queue"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD"]
+      cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+      compress                 = true
     }
   }
 
