@@ -26,3 +26,17 @@ probes:
 targetGroupBinding:
   enabled: true
   targetGroupName: surgegate-dev-booking-api
+
+serviceAccount:
+  name: booking-api # must match infra/envs/dev/booking_api.tf (Pod Identity association)
+
+aws:
+  region: ap-south-1
+
+# app/db.py looks up the endpoint and the RDS-managed secret of this instance at start-up.
+database:
+  instanceId: surgegate-dev-pg
+
+# alembic upgrade head as an Argo CD Sync hook Job (wave -5) before the pods roll out.
+migrations:
+  enabled: true
