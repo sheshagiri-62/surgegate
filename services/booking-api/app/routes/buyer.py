@@ -7,13 +7,16 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import cache
-from app.auth import AnyUser
+from app.auth import AnyUser, Buyer
 from app.db import get_session
+from app.holds import HoldError, create_hold
 from app.models import Event, Seat
+from app.schemas import HoldCreate, HoldOut
 
 router = APIRouter(prefix="/book", tags=["buyer"])
 DB = Annotated[Session, Depends(get_session)]
@@ -73,3 +76,29 @@ def seat_map(event_id: uuid.UUID, user: AnyUser, db: DB, response: Response) -> 
     response.headers["X-Cache"] = source
     response.headers["Cache-Control"] = "private, max-age=1"
     return data
+
+
+@router.post(
+    "/{event_id}/holds",
+    status_code=status.HTTP_201_CREATED,
+    response_model=HoldOut,
+    responses={409: {"description": "seat taken, limit reached, or sale not open"}},
+)
+def hold_seats(event_id: uuid.UUID, body: HoldCreate, buyer: Buyer, db: DB):
+    """Hold seats for 10 minutes. Exactly one buyer can ever hold a given seat."""
+    try:
+        result = create_hold(db, event_id, buyer.sub, body.seat_ids)
+    except HoldError as err:
+        return JSONResponse(
+            status_code=err.status, content={"detail": err.detail, **jsonable(err.extra)}
+        )
+    return HoldOut(
+        hold_id=result.hold_id,
+        expires_at=result.expires_at,
+        seats=result.seats,
+        amount_paise=result.amount_paise,
+    )
+
+
+def jsonable(extra: dict) -> dict:
+    return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in extra.items()}

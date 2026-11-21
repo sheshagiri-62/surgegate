@@ -19,3 +19,4 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-21 | 3 | Task 2 — Booking API models + Alembic migrations; migration Job run against RDS by Argo CD | [task-02-models-migrations](day-03/task-02-models-migrations.md) |
 | 2026-11-21 | 3 | Task 3 — Cognito user pool (buyer/organiser, tenant claim) + JWT checks in FastAPI | [task-03-cognito-jwt](day-03/task-03-cognito-jwt.md) |
 | 2026-11-21 | 3 | Task 4 — Organiser endpoints (create, upload seat map CSV, list), tenant-scoped | [task-04-organiser-endpoints](day-03/task-04-organiser-endpoints.md) |
+| 2026-11-21 | 4 | Task 1 — Seat map endpoint with Redis cache (2 s TTL, stampede lock, invalidation) | [task-01-seatmap-cache](day-04/task-01-seatmap-cache.md) |
