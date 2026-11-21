@@ -26,8 +26,16 @@ def aws(monkeypatch):
             AttributeDefinitions=[
                 {"AttributeName": "PK", "AttributeType": "S"},
                 {"AttributeName": "SK", "AttributeType": "S"},
+                {"AttributeName": "active", "AttributeType": "S"},
             ],
             BillingMode="PAY_PER_REQUEST",
+            GlobalSecondaryIndexes=[
+                {
+                    "IndexName": "active-queues",
+                    "KeySchema": [{"AttributeName": "active", "KeyType": "HASH"}],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
         )
         sqs = boto3.client("sqs", region_name="ap-south-1")
         url = sqs.create_queue(QueueName="joins")["QueueUrl"]
@@ -51,6 +59,7 @@ def open_queue(table, event_id=None, **overrides):
         "admission_rate": 125,
         "next_position": 0,
         "serving_up_to": 0,
+        "active": "1",
     }
     table.put_item(Item=item | overrides)
     return event_id

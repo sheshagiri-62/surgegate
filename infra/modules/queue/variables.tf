@@ -63,3 +63,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "schedules_enabled" {
+  description = "Run the every-minute queue schedules (starter, later valve)."
+  type        = bool
+  default     = true
+}

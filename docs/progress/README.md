@@ -26,3 +26,4 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-21 | 4 | Task 5 — Buyer Next.js app (static export): event page + seat picker; API CORS for localhost | [task-05-buyer-app](day-04/task-05-buyer-app.md) |
 | 2026-11-21 | — | **M2 met** — Phase 2 milestone | [phase-2-milestone](phase-2-milestone.md) |
 | 2026-11-21 | 5 | Task 1 — `queue` module: HTTP API + JWT authorizer, join → SQS, batched sequencer → DynamoDB | [task-01-queue-module](day-05/task-01-queue-module.md) |
+| 2026-11-21 | 5 | Task 2 — One place per account (conditional write) + pre-queue shuffle at sale start (starter on a 1-minute schedule) | [task-02-fairness](day-05/task-02-fairness.md) |

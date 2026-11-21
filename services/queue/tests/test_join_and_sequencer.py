@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from sg_queue import join, sequencer
+from sg_queue import join, positions, sequencer
 from tests.conftest import api_event, body, drain, open_queue
 
 
@@ -39,8 +39,8 @@ def test_sequencer_assigns_positions_in_join_order_with_one_counter_update(aws, 
     for i in range(25):
         join.handler(api_event(ev, sub=f"u{i:02d}"), None)
     calls = []
-    real = sequencer.reserve_positions
-    monkeypatch.setattr(sequencer, "reserve_positions", lambda e, n: calls.append(n) or real(e, n))
+    real = positions.reserve
+    monkeypatch.setattr(positions, "reserve", lambda e, n: calls.append(n) or real(e, n))
     out = sequencer.handler(drain(aws["queue_url"]), None)
     assert out == {"batchItemFailures": []}
     assert calls == [25]  # ONE counter update for the whole batch, not 25
