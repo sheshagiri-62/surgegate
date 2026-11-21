@@ -54,3 +54,8 @@ auth:
 redis:
   host: master.surgegate-dev-redis.cr9kvu.aps1.cache.amazonaws.com
   authSecretId: surgegate/dev/data/redis-auth
+
+# Browser origins allowed to call the API (dev: buyer app on the laptop, API via port-forward).
+cors:
+  allowOrigins:
+    - http://localhost:3000
