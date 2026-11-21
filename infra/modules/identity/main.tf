@@ -157,6 +157,8 @@ data "archive_file" "pre_token" {
   type        = "zip"
   source_file = "${path.module}/lambda/pre_token.py"
   output_path = "${path.module}/.build/pre_token.zip"
+  # Fixed file mode: otherwise Windows and Linux (CI) build different zips -> perpetual diff.
+  output_file_mode = "0644"
 }
 
 data "aws_iam_policy_document" "lambda_trust" {
