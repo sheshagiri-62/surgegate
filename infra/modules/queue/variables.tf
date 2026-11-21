@@ -69,3 +69,14 @@ variable "schedules_enabled" {
   type        = bool
   default     = true
 }
+
+variable "secrets_prefix" {
+  description = "Secrets Manager name prefix, e.g. surgegate/dev."
+  type        = string
+}
+
+variable "token_key_version" {
+  description = "Version of the queue-token key; increase to rotate."
+  type        = number
+  default     = 1
+}
