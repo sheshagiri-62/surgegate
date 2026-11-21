@@ -26,3 +26,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: COGNITO_CLIENT_IDS
   value: {{ join "," .Values.auth.clientIds | quote }}
 {{- end -}}
+
+
+{{/* Redis seat-map cache (app/cache.py): TLS + AUTH token from Secrets Manager. */}}
+{{- define "booking-api.redisEnv" -}}
+- name: REDIS_HOST
+  value: {{ .Values.redis.host | quote }}
+- name: REDIS_AUTH_SECRET_ID
+  value: {{ .Values.redis.authSecretId | quote }}
+{{- end -}}

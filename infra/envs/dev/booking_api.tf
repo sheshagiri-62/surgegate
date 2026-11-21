@@ -48,6 +48,13 @@ data "aws_iam_policy_document" "booking_api" {
     }
   }
 
+  # Redis AUTH token (seat-map cache). Encrypted with the AWS-managed Secrets Manager key.
+  statement {
+    sid       = "ReadRedisAuthToken"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [module.data.redis_auth_secret_arn]
+  }
+
   # The master secret is encrypted with the data KMS key; decrypt only through Secrets Manager.
   statement {
     sid       = "DecryptSecretsViaSecretsManager"
