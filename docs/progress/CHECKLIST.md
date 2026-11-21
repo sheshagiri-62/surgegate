@@ -70,9 +70,9 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [x] 2. Hold endpoint: single conditional `UPDATE`, per-buyer limit in the same transaction
 - [x] 3. Concurrency test: 200 parallel requests for the same 10 seats; exactly 10 holds succeed
 - [x] 4. Cross-tenant test: organiser A can never read or change organiser B's events
-- [ ] 5. Buyer Next.js app: event page and seat picker calling the API (no queue yet)
+- [x] 5. Buyer Next.js app: event page and seat picker calling the API (no queue yet)
 
-- [ ] **M2:** an organiser creates an event with a seat map, a buyer holds seats from the browser, and the concurrency test proves zero double bookings
+- [x] **M2:** an organiser creates an event with a seat map, a buyer holds seats from the browser, and the concurrency test proves zero double bookings ([phase-2-milestone](phase-2-milestone.md); browser click-through = your demo step)
 
 ## Phase 3 — Waiting room (Days 5–6) → M3
 
