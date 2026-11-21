@@ -9,6 +9,7 @@ on:
     paths:
       - "services/booking-api/**"
       - "web/buyer/**"
+      - "services/queue/**"
       - ".github/workflows/ci.yml"
 
 permissions:
@@ -78,3 +79,20 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_COGNITO_CLIENT_ID: ci-placeholder
+
+  queue:
+    name: queue Lambdas (ruff + pytest with moto)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/queue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/queue/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check . && ruff format --check .
+      - run: pytest -q -ra

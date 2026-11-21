@@ -47,3 +47,13 @@ output "redis_security_group_id" {
   description = "Redis security group."
   value       = aws_security_group.redis.id
 }
+
+output "queue_table_name" {
+  description = "DynamoDB waiting-room table."
+  value       = aws_dynamodb_table.queue.name
+}
+
+output "queue_table_arn" {
+  description = "DynamoDB waiting-room table ARN."
+  value       = aws_dynamodb_table.queue.arn
+}
