@@ -179,6 +179,7 @@ module "queue" {
   source = "../../modules/queue"
 
   name               = local.name
+  secrets_prefix     = "${var.project}/${local.env}"
   source_dir         = "${path.root}/../../../services/queue/src"
   table_name         = module.data.queue_table_name
   table_arn          = module.data.queue_table_arn

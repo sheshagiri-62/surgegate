@@ -12,6 +12,8 @@ os.environ.setdefault("AWS_DEFAULT_REGION", "ap-south-1")
 os.environ.setdefault("AWS_ACCESS_KEY_ID", "testing")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
 
+TEST_KEY = {"kid": "test-1", "key": "x" * 64}
+
 
 @pytest.fixture
 def aws(monkeypatch):
@@ -39,13 +41,18 @@ def aws(monkeypatch):
         )
         sqs = boto3.client("sqs", region_name="ap-south-1")
         url = sqs.create_queue(QueueName="joins")["QueueUrl"]
+        sm = boto3.client("secretsmanager", region_name="ap-south-1")
+        sm.create_secret(Name="token-key", SecretString=json.dumps(TEST_KEY))
         monkeypatch.setenv("QUEUE_TABLE", "queue")
         monkeypatch.setenv("JOIN_QUEUE_URL", url)
-        from sg_queue import common
+        monkeypatch.setenv("TOKEN_KEY_SECRET", "token-key")
+        from sg_queue import common, tokens
 
         common.table.cache_clear()
         common.sqs.cache_clear()
         common._meta_cache.clear()
+        tokens._secrets.cache_clear()
+        tokens._keys.clear()
         yield {"table": ddb.Table("queue"), "queue_url": url}
 
 

@@ -1,6 +1,6 @@
 # Lambda code uses only the standard library + boto3 (provided by the Lambda runtime).
 boto3==1.44.9
 botocore[crt]==1.44.9  # dev tools on a laptop: needed for `aws login` credentials
-moto[dynamodb,sqs]==5.2.5
+moto[dynamodb,sqs,secretsmanager]==5.2.5
 pytest==9.2.0
 ruff==0.17.6
