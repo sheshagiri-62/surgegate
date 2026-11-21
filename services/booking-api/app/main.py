@@ -6,6 +6,7 @@ Routes are added task by task (Phase 2): auth (/me), organiser endpoints, seat m
 import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import AnyUser
 from app.routes import buyer, organiser
@@ -13,6 +14,18 @@ from app.routes import buyer, organiser
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 
 app = FastAPI(title="SurgeGate booking API", version=APP_VERSION)
+# CORS: only the origins listed in CORS_ALLOW_ORIGINS (dev: the buyer app on localhost:3000).
+# Behind CloudFront the site and API share one origin and the list can be empty.
+_origins = [o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]
+if _origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_methods=["GET", "POST", "PUT"],
+        allow_headers=["Authorization", "Content-Type"],
+        allow_credentials=False,  # bearer tokens, no cookies
+        max_age=600,
+    )
 app.include_router(organiser.router)
 app.include_router(buyer.router)
 

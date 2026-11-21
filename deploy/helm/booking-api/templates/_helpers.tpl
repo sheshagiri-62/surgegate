@@ -35,3 +35,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: REDIS_AUTH_SECRET_ID
   value: {{ .Values.redis.authSecretId | quote }}
 {{- end -}}
+
+
+{{/* Browser origins allowed by CORS (empty = no CORS headers). */}}
+{{- define "booking-api.corsEnv" -}}
+- name: CORS_ALLOW_ORIGINS
+  value: {{ join "," .Values.cors.allowOrigins | quote }}
+{{- end -}}
