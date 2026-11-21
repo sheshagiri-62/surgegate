@@ -47,3 +47,23 @@ output "nat_public_ips" {
   description = "Outbound public IPs."
   value       = module.network.nat_public_ips
 }
+
+output "postgres_endpoint" {
+  description = "PostgreSQL endpoint (null while down)."
+  value       = module.data.postgres_endpoint
+}
+
+output "postgres_master_secret_arn" {
+  description = "RDS-managed master credentials in Secrets Manager (null while down)."
+  value       = module.data.postgres_master_secret_arn
+}
+
+output "redis_primary_endpoint" {
+  description = "Redis primary endpoint (TLS + AUTH; null while down)."
+  value       = module.data.redis_primary_endpoint
+}
+
+output "data_buckets" {
+  description = "S3 buckets (tickets, seatmaps)."
+  value       = module.data.bucket_names
+}

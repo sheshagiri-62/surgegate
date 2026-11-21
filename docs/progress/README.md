@@ -15,3 +15,4 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-20 | 2 | Task 3 — ECR + `build-deploy.yml`: build, scan, push, Helm tag bump; full loop proven | [task-03-build-deploy](day-02/task-03-build-deploy.md) |
 | 2026-11-20 | 2 | Task 4 — `edge` module: Terraform-owned ALB + CloudFront default domain (**paused**: CloudFront needs account verification) | [task-04-edge](day-02/task-04-edge.md) |
 | 2026-11-20 | 2 | Task 5 — `make up` / `make down` end to end + `make billing-check` | [task-05-make-up-down](day-02/task-05-make-up-down.md) |
+| 2026-11-21 | 3 | Task 1 — `data` module: RDS PostgreSQL, ElastiCache Redis, S3, KMS, Secrets Manager; `make up`/`make down` switches | [task-01-data](day-03/task-01-data.md) |

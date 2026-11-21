@@ -52,12 +52,16 @@ data "aws_iam_policy_document" "plan_state_lock" {
 }
 
 # Terraform refreshes aws_secretsmanager_secret_version with GetSecretValue. Limited to the
-# edge origin-header secrets; the plan role can already read that value from the state file.
+# Terraform-generated secrets (edge origin header, Redis AUTH); the plan role can already read
+# those values from the state file. RDS master and Razorpay secrets are NOT included.
 data "aws_iam_policy_document" "plan_read_edge_secrets" {
   statement {
-    sid       = "ReadEdgeOriginSecrets"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = ["arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/*/edge/*"]
+    sid     = "ReadTerraformGeneratedSecrets"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = [
+      "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/*/edge/*",
+      "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/*/data/redis-auth-*",
+    ]
   }
 }
 

@@ -46,14 +46,23 @@ DOWN_PLAN := $(ENV_DIR)/down.tfplan
 CLUSTER   := surgegate-$(ENV)
 TF_LOCK   := -lock-timeout=5m
 APPROVE   ?=
+DB_ID     := surgegate-$(ENV)-pg
+KEEP_SNAPSHOTS ?= 2
+
+# Newest available final snapshot of the dev database (empty if none) → restored by make up.
+LATEST_SNAPSHOT = $(shell aws rds describe-db-snapshots --db-instance-identifier $(DB_ID) --snapshot-type manual \
+	--query 'reverse(sort_by(DBSnapshots[?Status==`available`],&SnapshotCreateTime))[0].DBSnapshotIdentifier' \
+	--output text 2>/dev/null | grep -v '^None$$')
 
 .PHONY: billing-check
 
 up: check-env ## Create ENV: plan, ask "yes" (or APPROVE=yes), apply, kubeconfig, wait for Argo CD apps
 	terraform -chdir=$(ENV_DIR) init -input=false
-	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=true -var=enable_eks=true -out=up.tfplan
+	@echo "Restoring the database from snapshot: $(or $(LATEST_SNAPSHOT),<none - new empty database>)"
+	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=true -var=enable_eks=true \
+		-var=enable_data=true -var=restore_snapshot_id=$(LATEST_SNAPSHOT) -out=up.tfplan
 	@if [ "$(APPROVE)" != "yes" ]; then \
-		printf 'Apply this plan? It creates HOURLY-billed resources (NAT, EKS, nodes, ALB). Type yes: '; \
+		printf 'Apply this plan? It creates HOURLY-billed resources (NAT, EKS, nodes, ALB, RDS, Redis). Type yes: '; \
 		read ans; [ "$$ans" = "yes" ] || { echo "Not applied."; rm -f $(UP_PLAN); exit 1; }; fi
 	terraform -chdir=$(ENV_DIR) apply -input=false $(TF_LOCK) up.tfplan
 	@rm -f $(UP_PLAN)
@@ -65,7 +74,7 @@ up: check-env ## Create ENV: plan, ask "yes" (or APPROVE=yes), apply, kubeconfig
 		[ $$i -eq 60 ] && { echo "Not healthy yet:"; echo "$$bad"; }; sleep 10; done
 	@terraform -chdir=$(ENV_DIR) output
 
-down: check-env ## Remove everything hourly in ENV (EKS, nodes, ALB, NAT, EIP); free VPC stays; then billing-check
+down: check-env ## Remove everything hourly in ENV (EKS, nodes, ALB, NAT, EIP, RDS→final snapshot, Redis); then billing-check
 	@# Load balancers made by the LB controller for an Ingress or a LoadBalancer Service are not in
 	@# Terraform state; delete those objects first so the controller removes them (none expected:
 	@# our ALB is Terraform-owned, ADR 003).
@@ -77,10 +86,20 @@ down: check-env ## Remove everything hourly in ENV (EKS, nodes, ALB, NAT, EIP); 
 			| while read ns n; do [ -n "$$n" ] && kubectl delete svc -n "$$ns" "$$n" --wait=true --timeout=5m; done; \
 	fi
 	terraform -chdir=$(ENV_DIR) init -input=false
-	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=false -var=enable_eks=false -out=down.tfplan
+	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=false -var=enable_eks=false \
+		-var=enable_data=false -out=down.tfplan
 	terraform -chdir=$(ENV_DIR) apply -input=false $(TF_LOCK) down.tfplan
 	@rm -f $(DOWN_PLAN)
+	@$(MAKE) --no-print-directory prune-snapshots ENV=$(ENV)
 	@$(MAKE) --no-print-directory billing-check ENV=$(ENV)
+
+prune-snapshots: check-env ## Keep only the newest KEEP_SNAPSHOTS (default 2) final snapshots of the dev DB
+	@aws rds describe-db-snapshots --db-instance-identifier $(DB_ID) --snapshot-type manual \
+		--query 'reverse(sort_by(DBSnapshots[?Status==`available`],&SnapshotCreateTime))[].DBSnapshotIdentifier' \
+		--output text | tr '\t' '\n' | tail -n +$$(( $(KEEP_SNAPSHOTS) + 1 )) | while read s; do \
+		[ -n "$$s" ] && { echo "Deleting old DB snapshot $$s"; aws rds delete-db-snapshot --db-snapshot-identifier "$$s" >/dev/null; }; done; \
+	echo "DB snapshots kept: $$(aws rds describe-db-snapshots --db-instance-identifier $(DB_ID) --snapshot-type manual \
+		--query 'DBSnapshots[].DBSnapshotIdentifier' --output text)"
 
 billing-check: check-env ## List everything in ENV that bills by the hour (all lists empty = nothing running)
 	@echo "Billing by the hour in $(ENV) (every list should be empty after make down):"
@@ -95,13 +114,17 @@ billing-check: check-env ## List everything in ENV that bills by the hour (all l
 	EIP=$$(aws ec2 describe-addresses --query 'Addresses[].PublicIp' --output text); \
 	ENI=$$(aws ec2 describe-network-interfaces --filters Name=vpc-id,Values=$$VPC \
 		--query 'NetworkInterfaces[?Association.PublicIp].Association.PublicIp' --output text); \
+	RDS=$$(aws rds describe-db-instances --query "DBInstances[?DBSubnetGroup.VpcId=='$$VPC'].DBInstanceIdentifier" --output text); \
+	REDIS=$$(aws elasticache describe-replication-groups --query 'ReplicationGroups[?starts_with(ReplicationGroupId, `surgegate-$(ENV)`)].ReplicationGroupId' --output text); \
 	echo "  EKS clusters:     $$EKS"; \
 	echo "  EC2 instances:    $$EC2"; \
 	echo "  Load balancers:   $$LB"; \
 	echo "  NAT gateways:     $$NAT"; \
 	echo "  Elastic IPs:      $$EIP"; \
 	echo "  Public IPv4 ENIs: $$ENI"; \
-	if [ -z "$$EKS$$EC2$$LB$$NAT$$EIP$$ENI" ]; then echo "  => nothing billable by the hour is running."; \
+	echo "  RDS instances:    $$RDS"; \
+	echo "  ElastiCache:      $$REDIS"; \
+	if [ -z "$$EKS$$EC2$$LB$$NAT$$EIP$$ENI$$RDS$$REDIS" ]; then echo "  => nothing billable by the hour is running."; \
 	else echo "  => STILL RUNNING: run make down (or check the console)."; fi
 
 load: ## Run a k6 load test (K6_SCRIPT=path)
