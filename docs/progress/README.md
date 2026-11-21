@@ -23,3 +23,5 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-21 | 4 | Task 2 — Hold endpoint: single conditional UPDATE + per-buyer limit (advisory lock) | [task-02-holds](day-04/task-02-holds.md) |
 | 2026-11-21 | 4 | Task 3 — Concurrency test: 200 parallel → exactly 10 holds (CI + real RDS) | [task-03-concurrency-test](day-04/task-03-concurrency-test.md) |
 | 2026-11-21 | 4 | Task 4 — Cross-tenant test over every organiser route (mutation-checked) | [task-04-cross-tenant-test](day-04/task-04-cross-tenant-test.md) |
+| 2026-11-21 | 4 | Task 5 — Buyer Next.js app (static export): event page + seat picker; API CORS for localhost | [task-05-buyer-app](day-04/task-05-buyer-app.md) |
+| 2026-11-21 | — | **M2 met** — Phase 2 milestone | [phase-2-milestone](phase-2-milestone.md) |

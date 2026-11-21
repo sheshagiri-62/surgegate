@@ -4,3 +4,5 @@ out/
 .env*.local
 next-env.d.ts
 *.tsbuildinfo
+# written by `next dev` for coding agents (generated, not ours)
+AGENTS.md
