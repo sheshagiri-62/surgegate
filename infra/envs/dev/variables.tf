@@ -51,3 +51,9 @@ variable "enable_eks" {
     error_message = "enable_eks = true needs enable_nat_gateway = true."
   }
 }
+
+variable "token_shell" {
+  description = "Shell that runs infra/scripts/eks-token.sh. make passes its own bash's absolute path (on Windows a bare \"bash\" can be the WSL stub)."
+  type        = string
+  default     = "bash"
+}

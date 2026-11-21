@@ -23,7 +23,8 @@ provider "aws" {
 }
 
 # Helm talks to the cluster with a short-lived token from `aws eks get-token`
-# (AWS_PROFILE locally, OIDC role credentials in CI). Empty when the cluster is down.
+# (AWS_PROFILE locally, OIDC role credentials in CI), fetched through a small retrying wrapper
+# (infra/scripts/eks-token.sh; see why there). Empty when the cluster is down.
 provider "helm" {
   # Own repo list and cache (gitignored), so a developer's personal `helm repo` setup can't
   # break chart lookups and local runs behave like CI. Charts use their full repository URL.
@@ -35,8 +36,8 @@ provider "helm" {
     cluster_ca_certificate = try(base64decode(module.eks[0].cluster_certificate_authority_data), "")
     exec = {
       api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", local.name, "--region", var.region]
+      command     = var.token_shell
+      args        = ["${path.root}/../../scripts/eks-token.sh", local.name, var.region]
     }
   }
 }
