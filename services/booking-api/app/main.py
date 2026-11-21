@@ -1,12 +1,13 @@
-"""SurgeGate booking API (hello-world stage, Day 2).
+"""SurgeGate booking API.
 
-Seat map, holds and orders arrive in Phase 2; for now the service only proves the
-build → ECR → Argo CD → EKS → ALB path.
+Routes are added task by task (Phase 2): auth (/me), organiser endpoints, seat map, holds.
 """
 
 import os
 
 from fastapi import FastAPI
+
+from app.auth import AnyUser
 
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 
@@ -22,3 +23,13 @@ def healthz() -> dict[str, str]:
 @app.get("/")
 def root() -> dict[str, str]:
     return {"service": "booking-api", "version": APP_VERSION}
+
+
+@app.get("/me")
+def me(principal: AnyUser) -> dict:
+    """Who am I? Proves the JWT checks: 401 without a valid Cognito access token."""
+    return {
+        "sub": principal.sub,
+        "groups": sorted(principal.groups),
+        "tenant_id": str(principal.tenant_id) if principal.tenant_id else None,
+    }

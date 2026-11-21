@@ -40,6 +40,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             {{- include "booking-api.dbEnv" . | nindent 12 }}
+            {{- include "booking-api.authEnv" . | nindent 12 }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}

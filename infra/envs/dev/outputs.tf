@@ -67,3 +67,18 @@ output "data_buckets" {
   description = "S3 buckets (tickets, seatmaps)."
   value       = module.data.bucket_names
 }
+
+output "cognito_user_pool_id" {
+  description = "Cognito user pool ID."
+  value       = module.identity.user_pool_id
+}
+
+output "cognito_issuer" {
+  description = "JWT issuer the booking API accepts."
+  value       = module.identity.issuer
+}
+
+output "cognito_client_ids" {
+  description = "Cognito app client IDs (buyer_web, organiser_web, test)."
+  value       = module.identity.client_ids
+}
