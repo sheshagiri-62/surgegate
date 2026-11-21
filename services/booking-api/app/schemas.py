@@ -48,3 +48,28 @@ class SeatMapUploaded(BaseModel):
     event_id: uuid.UUID
     seat_count: int
     zones: list[ZoneSummary]
+
+
+class HoldCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    seat_ids: list[uuid.UUID] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def unique_seats(self) -> HoldCreate:
+        if len(set(self.seat_ids)) != len(self.seat_ids):
+            raise ValueError("seat_ids must not repeat")
+        return self
+
+
+class HeldSeat(BaseModel):
+    id: uuid.UUID
+    label: str
+    price_paise: int
+
+
+class HoldOut(BaseModel):
+    hold_id: uuid.UUID
+    expires_at: datetime
+    seats: list[HeldSeat]
+    amount_paise: int

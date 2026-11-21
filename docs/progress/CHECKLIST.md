@@ -66,7 +66,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 **Day 4 — Sun 22 Nov**
 
-- [ ] 1. Seat map endpoint with Redis cache and invalidation on change
+- [x] 1. Seat map endpoint with Redis cache and invalidation on change
 - [ ] 2. Hold endpoint: single conditional `UPDATE`, per-buyer limit in the same transaction
 - [ ] 3. Concurrency test: 200 parallel requests for the same 10 seats; exactly 10 holds succeed
 - [ ] 4. Cross-tenant test: organiser A can never read or change organiser B's events
