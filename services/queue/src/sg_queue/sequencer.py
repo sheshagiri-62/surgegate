@@ -1,12 +1,19 @@
-"""Sequencer: SQS join messages -> queue positions in DynamoDB (blueprint step 2).
+"""Sequencer: SQS join messages -> one place per account -> positions (blueprint steps 2-3).
 
-For each batch (up to 100 messages): per event, ONE atomic counter update reserves a block of
-positions (`ADD next_position :n`), instead of one counter write per person; that avoids a hot
-counter item. Then each entry is written with its position. Joins within a batch are ordered
-by joined_at, so later arrivals stand behind earlier ones.
+Per batch (up to 100 messages), per event:
+  1. claim each account's place with a conditional write (a second join of the same account
+     is dropped: one place per account);
+  2. if the queue is OPEN, give the new places positions with ONE counter update for the
+     whole batch (`ADD next_position :n`), in join order;
+     if it is still in PRE-QUEUE (before the sale starts), the places keep no position and a
+     random shuffle key; the starter numbers them in random order at sale start.
 
-A failed message is reported back to SQS (ReportBatchItemFailures) and retried on its own;
-after 5 failures it moves to the dead-letter queue.
+Race with the starter: after claiming, the queue state is read again (strongly consistent).
+If the sale opened meanwhile, this sequencer numbers its own places; if not, the starter's
+final sweep (after it opens the queue) will. Nobody is left without a number.
+
+A failed message is reported back to SQS (ReportBatchItemFailures) and retried alone; after 5
+failures it moves to the dead-letter queue.
 """
 
 from __future__ import annotations
@@ -15,35 +22,18 @@ import json
 import logging
 from collections import defaultdict
 
-from sg_queue.common import META, pk, table, user_sk
+from sg_queue import positions
+from sg_queue.common import META, pk, table
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
-
-def reserve_positions(event_id: str, count: int) -> int:
-    """Atomically reserve `count` positions; returns the first one."""
-    out = table().update_item(
-        Key={"PK": pk(event_id), "SK": META},
-        UpdateExpression="ADD next_position :n",
-        ConditionExpression="attribute_exists(PK)",
-        ExpressionAttributeValues={":n": count},
-        ReturnValues="UPDATED_NEW",
-    )
-    last = int(out["Attributes"]["next_position"])
-    return last - count + 1
+NUMBERED_STATUSES = {"open", "paused"}  # paused: positions still given, nobody admitted
 
 
-def write_entry(join: dict, position: int) -> None:
-    table().put_item(
-        Item={
-            "PK": pk(join["event_id"]),
-            "SK": user_sk(join["sub"]),
-            "request_id": join["request_id"],
-            "joined_at": join["joined_at"],
-            "position": position,
-        }
-    )
+def queue_status(event_id: str) -> str | None:
+    item = table().get_item(Key={"PK": pk(event_id), "SK": META}, ConsistentRead=True).get("Item")
+    return item.get("status") if item else None
 
 
 def handler(event, context):
@@ -57,22 +47,30 @@ def handler(event, context):
             log.error("bad join message %s", record.get("messageId"))
             failures.append({"itemIdentifier": record["messageId"]})
 
-    placed = 0
+    stats = {"claimed": 0, "duplicates": 0, "placed": 0, "pre_queue": 0}
     for event_id, joins in by_event.items():
         joins.sort(key=lambda j: j[1]["joined_at"])
         try:
-            first = reserve_positions(event_id, len(joins))
+            status = queue_status(event_id)
+            if status is None:
+                raise LookupError(f"no queue for event {event_id}")
+            pre_queue = status not in NUMBERED_STATUSES
+            claimed = []
+            for _message_id, join in joins:
+                if positions.claim(join, pre_queue=pre_queue):
+                    claimed.append(join["sub"])
+                else:
+                    stats["duplicates"] += 1
+            stats["claimed"] += len(claimed)
+            if pre_queue and queue_status(event_id) in NUMBERED_STATUSES:
+                pre_queue = False  # the sale opened while we were claiming: number them now
+            if pre_queue:
+                stats["pre_queue"] += len(claimed)
+            else:
+                stats["placed"] += positions.assign(event_id, claimed)
         except Exception:
-            log.exception("could not reserve positions for event %s", event_id)
+            log.exception("could not sequence joins for event %s", event_id)
             failures.extend({"itemIdentifier": mid} for mid, _ in joins)
-            continue
-        for offset, (message_id, join) in enumerate(joins):
-            try:
-                write_entry(join, first + offset)
-                placed += 1
-            except Exception:
-                log.exception("could not write entry %s", message_id)
-                failures.append({"itemIdentifier": message_id})
 
-    log.info(json.dumps({"placed": placed, "failed": len(failures), "events": len(by_event)}))
+    log.info(json.dumps(stats | {"failed": len(failures), "events": len(by_event)}))
     return {"batchItemFailures": failures}

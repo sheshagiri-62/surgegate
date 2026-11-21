@@ -79,7 +79,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 **Day 5 — Mon 23 Nov**
 
 - [x] 1. `queue` module: API Gateway, `join` Lambda writing to SQS, `sequencer` Lambda assigning positions in batches into DynamoDB
-- [ ] 2. One place per account (conditional write); pre-queue shuffle at sale start
+- [x] 2. One place per account (conditional write); pre-queue shuffle at sale start
 - [ ] 3. `position` endpoint returning a signed queue token (key in Secrets Manager)
 - [ ] 4. `serving` endpoint behind CloudFront with a 5-second cache
 

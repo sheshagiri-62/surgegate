@@ -333,6 +333,19 @@ resource "aws_dynamodb_table" "queue" {
     type = "S"
   }
 
+  attribute {
+    name = "active"
+    type = "S"
+  }
+
+  # Sparse index of active queues: only META items of queues still running carry `active`, so
+  # the starter and valve find them without scanning queue entries.
+  global_secondary_index {
+    name            = "active-queues"
+    hash_key        = "active"
+    projection_type = "ALL"
+  }
+
   # Queue entries carry expires_at (epoch seconds); DynamoDB deletes them for free afterwards.
   ttl {
     attribute_name = "expires_at"

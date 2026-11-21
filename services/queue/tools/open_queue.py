@@ -29,6 +29,7 @@ boto3.resource("dynamodb").Table(a.table).put_item(
         "admission_rate": a.rate,
         "next_position": 0,
         "serving_up_to": 0,
+        "active": "1",  # listed in the active-queues index (the starter and valve read it)
     }
 )
 print(f"queue for {a.event_id}: status={a.status}, rate={a.rate}/min, sale at {a.sale_starts_at}")

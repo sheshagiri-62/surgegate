@@ -21,7 +21,7 @@ from sg_queue.common import (
     valid_event_id,
 )
 
-OPEN_STATUSES = {"pre-queue", "open", "paused"}  # paused: you can still join, nobody is admitted
+OPEN_STATUSES = {"pre-queue", "shuffling", "open", "paused"}  # paused: join yes, admit no
 
 
 def handler(event, context):

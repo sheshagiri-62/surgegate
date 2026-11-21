@@ -18,6 +18,11 @@ locals {
       timeout = 30
       memory  = 256
     }
+    starter = {
+      handler = "sg_queue.starter.handler"
+      timeout = 60
+      memory  = 256
+    }
   }
 }
 
@@ -114,9 +119,18 @@ data "aws_iam_policy_document" "fn" {
   dynamic "statement" {
     for_each = each.key == "sequencer" ? [1] : []
     content {
-      sid       = "WritePositions"
-      actions   = ["dynamodb:UpdateItem", "dynamodb:PutItem"]
+      sid       = "ClaimPlacesAndWritePositions"
+      actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"]
       resources = [var.table_arn]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = each.key == "starter" ? [1] : []
+    content {
+      sid       = "OpenQueuesAndShuffle"
+      actions   = ["dynamodb:Query", "dynamodb:UpdateItem"]
+      resources = [var.table_arn, "${var.table_arn}/index/active-queues"]
     }
   }
 }
@@ -254,4 +268,62 @@ resource "aws_lambda_permission" "api" {
   function_name = aws_lambda_function.fn[each.key].function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+# --- Every minute: open queues whose sale has started (shuffle the pre-queue) -------------
+data "aws_iam_policy_document" "scheduler_trust" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["scheduler.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+}
+
+data "aws_caller_identity" "current" {}
+
+resource "aws_iam_role" "scheduler" {
+  name               = "${var.name}-queue-scheduler"
+  assume_role_policy = data.aws_iam_policy_document.scheduler_trust.json
+  tags               = local.tags
+}
+
+data "aws_iam_policy_document" "scheduler" {
+  statement {
+    actions   = ["lambda:InvokeFunction"]
+    resources = [aws_lambda_function.fn["starter"].arn]
+  }
+}
+
+resource "aws_iam_role_policy" "scheduler" {
+  name   = "invoke-queue-tick"
+  role   = aws_iam_role.scheduler.id
+  policy = data.aws_iam_policy_document.scheduler.json
+}
+
+resource "aws_scheduler_schedule" "starter" {
+  name                         = "${var.name}-queue-starter"
+  description                  = "Open waiting rooms at sale start (pre-queue shuffle)"
+  schedule_expression          = "rate(1 minute)"
+  schedule_expression_timezone = "UTC"
+  state                        = var.schedules_enabled ? "ENABLED" : "DISABLED"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_function.fn["starter"].arn
+    role_arn = aws_iam_role.scheduler.arn
+    retry_policy {
+      maximum_retry_attempts       = 0 # the next minute's run is the retry
+      maximum_event_age_in_seconds = 60
+    }
+  }
 }
