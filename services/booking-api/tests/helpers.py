@@ -48,3 +48,34 @@ def organiser(tenant_id: uuid.UUID | None = None) -> dict[str, str]:
 
 def buyer(sub: str | None = None) -> dict[str, str]:
     return bearer(make_token(sub or f"buyer-{uuid.uuid4()}", ["buyer"]))
+
+
+# --- booking passes (what the queue's admit endpoint issues) ------------------------------
+PASS_KEY = {"kid": "pass-test", "key": "k" * 64}
+
+
+def make_pass(sub: str, event_id, ttl: int = 900, key: dict | None = None, **overrides) -> str:
+    import base64
+    import hashlib
+    import hmac
+    import json
+
+    key = key or PASS_KEY
+    now = int(time.time())
+    payload = {
+        "typ": "pass",
+        "ev": str(event_id),
+        "sub": sub,
+        "iat": now,
+        "exp": now + ttl,
+        "kid": key["kid"],
+    } | overrides
+    body = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
+    sig = hmac.new(key["key"].encode(), body.encode(), hashlib.sha256).digest()
+    return f"{body}.{base64.urlsafe_b64encode(sig).rstrip(b'=').decode()}"
+
+
+def admitted_buyer(event_id, sub: str | None = None) -> dict[str, str]:
+    """Headers of a buyer the waiting room has let in: access token + booking pass."""
+    sub = sub or f"buyer-{uuid.uuid4()}"
+    return buyer(sub) | {"X-Booking-Pass": make_pass(sub, event_id)}

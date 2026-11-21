@@ -55,6 +55,13 @@ data "aws_iam_policy_document" "booking_api" {
     resources = [module.data.redis_auth_secret_arn]
   }
 
+  # Booking passes: verify the waiting room's pass on every /book/{event}/... request.
+  statement {
+    sid       = "ReadBookingPassKey"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [module.queue.pass_key_secret_arn]
+  }
+
   # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
   statement {
     sid       = "WaitingRoomControls"

@@ -7,6 +7,8 @@ PostgreSQL sees genuinely competing transactions. The database is checked afterw
 the HTTP answers.
 """
 
+import json
+import os
 import random
 import socket
 import threading
@@ -21,7 +23,7 @@ import pytest
 import uvicorn
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
-from tests.helpers import SETTINGS, FakeJwks, buyer, organiser
+from tests.helpers import PASS_KEY, SETTINGS, FakeJwks, admitted_buyer, organiser
 
 pytestmark = pytest.mark.integration
 
@@ -31,7 +33,6 @@ PARALLEL = 200
 @pytest.fixture(scope="module")
 def server(migrated_engine):
     """The real app on a free local port, backed by the test database."""
-    import os
 
     from app import auth, db
     from app.main import app
@@ -46,6 +47,10 @@ def server(migrated_engine):
         finally:
             s.close()
 
+    # The race runs the production path: every buyer carries a booking pass.
+    saved_env = {k: os.environ.get(k) for k in ("BOOKING_PASS_REQUIRED", "BOOKING_PASS_KEY_JSON")}
+    os.environ["BOOKING_PASS_REQUIRED"] = "true"  # noqa: S105 - a feature flag, not a secret
+    os.environ["BOOKING_PASS_KEY_JSON"] = json.dumps(PASS_KEY)
     original_jwks = auth._jwks_client
     auth._jwks_client = lambda url: FakeJwks()
     app.dependency_overrides[auth.get_auth_settings] = lambda: SETTINGS
@@ -64,6 +69,11 @@ def server(migrated_engine):
     thread.join(timeout=10)
     app.dependency_overrides.clear()
     auth._jwks_client = original_jwks
+    for k, v in saved_env.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
     engine.dispose()
 
 
@@ -92,7 +102,10 @@ def make_event(base, seats=10, per_buyer_limit=4):
         )
         assert r.status_code == 200, r.text
         seat_ids = [
-            s["id"] for s in c.get(f"/book/{ev['id']}/seats", headers=buyer()).json()["seats"]
+            s["id"]
+            for s in c.get(f"/book/{ev['id']}/seats", headers=admitted_buyer(ev["id"])).json()[
+                "seats"
+            ]
         ]
     return ev["id"], seat_ids
 
@@ -130,7 +143,7 @@ def db_view(engine, event_id):
 def test_200_parallel_requests_for_the_same_10_seats_exactly_10_succeed(server, migrated_engine):
     event_id, seat_ids = make_event(server, seats=10)
     # 200 different buyers; buyer i wants seat i % 10, so 20 buyers fight for every seat.
-    requests = [(buyer(), [seat_ids[i % 10]]) for i in range(PARALLEL)]
+    requests = [(admitted_buyer(event_id), [seat_ids[i % 10]]) for i in range(PARALLEL)]
     results = fire(server, event_id, requests)
 
     codes = Counter(code for code, _, _ in results)
@@ -153,7 +166,7 @@ def test_overlapping_multi_seat_holds_never_deadlock_or_double_book(server, migr
     for i in range(PARALLEL):
         pair = [seat_ids[i % 10], seat_ids[(i + 1) % 10]]
         rng.shuffle(pair)  # different lock order in different requests
-        requests.append((buyer(), pair))
+        requests.append((admitted_buyer(event_id), pair))
     results = fire(server, event_id, requests)
 
     assert all(code in (201, 409) for code, _, _ in results), Counter(c for c, _, _ in results)
@@ -170,7 +183,7 @@ def test_overlapping_multi_seat_holds_never_deadlock_or_double_book(server, migr
 
 def test_one_buyer_racing_themselves_cannot_beat_the_limit(server, migrated_engine):
     event_id, seat_ids = make_event(server, seats=20, per_buyer_limit=4)
-    me = buyer(f"greedy-{uuid.uuid4()}")
+    me = admitted_buyer(event_id, f"greedy-{uuid.uuid4()}")
     results = fire(server, event_id, [(me, [s]) for s in seat_ids])
     codes = Counter(code for code, _, _ in results)
     assert codes == {201: 4, 409: 16}, codes

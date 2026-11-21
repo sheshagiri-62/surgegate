@@ -80,3 +80,9 @@ variable "token_key_version" {
   type        = number
   default     = 1
 }
+
+variable "pass_key_version" {
+  description = "Version of the booking-pass key; increase to rotate."
+  type        = number
+  default     = 1
+}

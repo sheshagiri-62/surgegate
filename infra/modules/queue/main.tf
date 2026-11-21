@@ -38,6 +38,11 @@ locals {
       timeout = 30
       memory  = 256
     }
+    admit = {
+      handler = "sg_queue.admit.handler"
+      timeout = 10
+      memory  = 256
+    }
   }
   # Functions run every minute by EventBridge Scheduler.
   scheduled = {
@@ -50,6 +55,7 @@ locals {
     join     = { key = "POST /queue/{event}/join", auth = true }
     position = { key = "GET /queue/{event}/position", auth = true }
     serving  = { key = "GET /queue/{event}/serving", auth = false }
+    admit    = { key = "POST /queue/{event}/admit", auth = true }
   }
 }
 
@@ -180,6 +186,24 @@ data "aws_iam_policy_document" "fn" {
   }
 
   dynamic "statement" {
+    for_each = each.key == "admit" ? [1] : []
+    content {
+      sid       = "CheckAndMarkAdmission"
+      actions   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+      resources = [var.table_arn]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = each.key == "admit" ? [1] : []
+    content {
+      sid       = "ReadTokenAndPassKeys"
+      actions   = ["secretsmanager:GetSecretValue"]
+      resources = [aws_secretsmanager_secret.token_key.arn, aws_secretsmanager_secret.pass_key.arn]
+    }
+  }
+
+  dynamic "statement" {
     for_each = each.key == "valve" ? [1] : []
     content {
       sid       = "AdvanceServing"
@@ -223,6 +247,7 @@ resource "aws_lambda_function" "fn" {
       QUEUE_TABLE      = var.table_name
       JOIN_QUEUE_URL   = aws_sqs_queue.joins.url
       TOKEN_KEY_SECRET = aws_secretsmanager_secret.token_key.arn
+      PASS_KEY_SECRET  = aws_secretsmanager_secret.pass_key.arn
     }
   }
 
@@ -427,4 +452,26 @@ moved {
 moved {
   from = aws_scheduler_schedule.starter
   to   = aws_scheduler_schedule.tick["starter"]
+}
+
+# --- Booking-pass signing key (admit signs; booking API and, later, CloudFront verify) -------
+ephemeral "random_password" "pass_key" {
+  length  = 64
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "pass_key" {
+  name                    = "${var.secrets_prefix}/queue/pass-key"
+  description             = "HMAC key for 15-minute booking passes (JSON: kid, key)"
+  recovery_window_in_days = 7
+  tags                    = local.tags
+}
+
+resource "aws_secretsmanager_secret_version" "pass_key" {
+  secret_id = aws_secretsmanager_secret.pass_key.id
+  secret_string_wo = jsonencode({
+    kid = "p${var.pass_key_version}"
+    key = ephemeral.random_password.pass_key.result
+  })
+  secret_string_wo_version = var.pass_key_version
 }

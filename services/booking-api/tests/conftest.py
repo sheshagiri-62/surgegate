@@ -92,6 +92,8 @@ def api(migrated_engine, monkeypatch, queue_table):
             s.close()
 
     monkeypatch.setattr(auth, "_jwks_client", lambda url: FakeJwks())
+    # Seat-logic tests run without the waiting room; test_booking_pass.py turns the check on.
+    monkeypatch.setenv("BOOKING_PASS_REQUIRED", "false")
     cache.get_redis.cache_clear()
     if r := cache.get_redis():
         r.flushdb()
