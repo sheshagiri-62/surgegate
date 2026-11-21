@@ -309,3 +309,44 @@ resource "aws_elasticache_replication_group" "redis" {
 
   tags = local.tags
 }
+
+# ===========================================================================
+# PERSISTENT: DynamoDB queue table (waiting room). On-demand = no hourly cost; kept between
+# sessions like the RDS snapshot (plan: "Data between sessions: RDS snapshot + DynamoDB tables").
+#   PK = EVENT#<id>, SK = META        queue state
+#   PK = EVENT#<id>, SK = USER#<sub>  queue entry
+# ===========================================================================
+resource "aws_dynamodb_table" "queue" {
+  name                        = "${var.name}-queue"
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "PK"
+  range_key                   = "SK"
+  deletion_protection_enabled = var.queue_table_deletion_protection
+
+  attribute {
+    name = "PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "SK"
+    type = "S"
+  }
+
+  # Queue entries carry expires_at (epoch seconds); DynamoDB deletes them for free afterwards.
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
+  }
+
+  point_in_time_recovery {
+    enabled = var.queue_table_pitr
+  }
+
+  # Encrypted at rest with the AWS-owned key (free; no KMS calls from every Lambda).
+  server_side_encryption {
+    enabled = false
+  }
+
+  tags = merge(local.tags, { Name = "${var.name}-queue" })
+}

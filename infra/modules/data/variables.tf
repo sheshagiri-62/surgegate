@@ -101,3 +101,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "queue_table_deletion_protection" {
+  description = "Protect the DynamoDB queue table from deletion."
+  type        = bool
+  default     = true
+}
+
+variable "queue_table_pitr" {
+  description = "Point-in-time recovery for the queue table (demo: true)."
+  type        = bool
+  default     = false
+}

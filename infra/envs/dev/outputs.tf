@@ -82,3 +82,13 @@ output "cognito_client_ids" {
   description = "Cognito app client IDs (buyer_web, organiser_web, test)."
   value       = module.identity.client_ids
 }
+
+output "queue_api_endpoint" {
+  description = "Waiting-room API (API Gateway)."
+  value       = module.queue.api_endpoint
+}
+
+output "queue_table" {
+  description = "DynamoDB waiting-room table."
+  value       = module.data.queue_table_name
+}

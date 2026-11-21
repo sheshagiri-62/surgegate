@@ -169,3 +169,19 @@ module "identity" {
   name               = local.name
   enable_test_client = true # password-auth client for scripts and tests (dev only)
 }
+
+# ---------------------------------------------------------------------------
+# Waiting room: API Gateway HTTP API + Lambda + SQS (+ DynamoDB table in the data module).
+# Pay per request, persistent: make down leaves it (no hourly cost).
+# ---------------------------------------------------------------------------
+module "queue" {
+  source = "../../modules/queue"
+
+  name               = local.name
+  source_dir         = "${path.root}/../../../services/queue/src"
+  table_name         = module.data.queue_table_name
+  table_arn          = module.data.queue_table_arn
+  cognito_issuer     = module.identity.issuer
+  cognito_client_ids = values(module.identity.client_ids)
+  cors_allow_origins = ["http://localhost:3000"] # buyer app in dev (CloudFront later: same origin)
+}
