@@ -23,7 +23,7 @@ def preflight(client, origin):
         headers={
             "Origin": origin,
             "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": "authorization,content-type",
+            "Access-Control-Request-Headers": "authorization,content-type,x-booking-pass",
         },
     )
 
