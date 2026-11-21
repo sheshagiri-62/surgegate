@@ -4,7 +4,7 @@
 - **Phase / milestone:** Phase 2 (Booking core) → M2
 - **Status:** Done. Snapshot/restore check **pending**: the marker row is written; tonight's
   `make down` takes the final snapshot and the next `make up` restores it, then the row is checked.
-- **Commit / PR:** branch `infra/data` (PR link in the Day 3 summary)
+- **Commit / PR:** [#14](https://github.com/sheshagiri-62/surgegate/pull/14)
 
 ## 1. What the task was
 
