@@ -13,6 +13,10 @@ ENV APP_VERSION=${APP_VERSION} \
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 COPY --from=build /install /usr/local
 WORKDIR /srv
+# RDS CA bundle: the app verifies the database's TLS certificate (sslmode=verify-full).
+ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /srv/certs/rds-global-bundle.pem
+COPY alembic.ini ./
+COPY alembic ./alembic
 COPY app ./app
 USER 10001
 EXPOSE 8000
