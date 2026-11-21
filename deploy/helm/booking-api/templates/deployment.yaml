@@ -20,7 +20,8 @@ spec:
       labels:
         {{- include "booking-api.labels" . | nindent 8 }}
     spec:
-      automountServiceAccountToken: false
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      automountServiceAccountToken: false # Pod Identity adds its own token; no Kubernetes API access
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -37,6 +38,8 @@ spec:
         - name: booking-api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- include "booking-api.dbEnv" . | nindent 12 }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}
