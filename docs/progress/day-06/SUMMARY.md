@@ -51,12 +51,37 @@ verification"**. M3: see `../phase-3-milestone.md` (partly met).
 
 Check Cost Explorer tomorrow for actuals (it lags about a day).
 
+## make down (end of session)
+
+- Try 1 and 2 failed before destroying anything: `Error: Failed to install provider … Error while
+  installing hashicorp/archive v2.8.1: failed to open temporary file … open
+  C:\Windows\terraform-provider1905419745: Access is denied.` The main checkout had never installed
+  the new `archive` provider, and in that shell Windows' temp folder resolved to `C:\Windows`;
+  setting `TMP`/`TEMP` in Bash didn't help. **Fix:** `terraform init` from PowerShell (normal
+  TEMP), then `make down`.
+- Try 3: **`Apply complete! Resources: 0 added, 0 changed, 63 destroyed.`** RDS wrote the final
+  snapshot **`surgegate-dev-pg-final-873e7969` (available, 20 GB)**.
+- **New problem:** inside `make`, every `aws` call fails with
+  `RuntimeError: Could not determine home directory.` / `[PYI-…:ERROR] Failed to execute script
+  'aws'`. `make`'s recipe shell (`C:\msys64\usr\bin\make`, GNU Make 4.4.1) runs with
+  `HOME=/home/shesh` and an **empty `USERPROFILE`**, even when it is passed explicitly. The same
+  happens with the pre-#27 Makefile, so it's an environment change on this machine, not tonight's
+  code. As a result `make billing-check` and `make prune-snapshots` printed empty lists **that
+  can't be trusted**.
+- **Checked directly with the AWS CLI instead (works outside make), account-wide:** EKS `[]`, EC2
+  running `[]`, load balancers `[]`, NAT gateways `[]`, Elastic IPs `[]`, public IPv4 ENIs `[]`,
+  RDS instances `[]`, ElastiCache `[]` → **nothing billable by the hour is running.**
+- **Must fix before the next `make up`:** `make up` finds the snapshot to restore with an `aws` call
+  inside make. If that call fails it would create an **empty** database instead of restoring.
+  Check that `make up` prints `Restoring the database from snapshot: surgegate-dev-pg-final-873e7969`,
+  and stop if it says `<none …>`.
+
 ## Still running
 
-Until `make down`: EKS + 2 nodes, NAT + EIP, ALB, RDS `surgegate-dev-pg`, Redis
-`surgegate-dev-redis`. Pay-per-request only (no hourly cost, kept): API Gateway, the 6 queue
-Lambdas, SQS, DynamoDB, 2 Scheduler schedules (every minute), Cognito. Local: the `next dev`
-process, the port-forward, Docker `sg-pg` / `sg-redis`.
+Nothing billable by the hour (checked directly, above). Kept, pay-per-request only: API Gateway,
+the 6 queue Lambdas, SQS, DynamoDB, the 2 Scheduler schedules (every minute; cents a month),
+Cognito. Persistent monthly: KMS key, S3 buckets, secrets, the RDS final snapshot. Local processes
+(the `next dev` server, the port-forward, Docker `sg-pg`/`sg-redis`) are stopped.
 
 ## Next session starts with
 
