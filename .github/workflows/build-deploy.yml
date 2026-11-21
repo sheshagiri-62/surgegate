@@ -110,6 +110,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Runs the image exactly as the cluster does (non-root, read-only root filesystem): the app
+      # imports, Alembic finds its revisions, and the RDS CA bundle is readable by uid 10001.
+      - name: Smoke-test the image (non-root, read-only)
+        if: steps.exists.outputs.found != 'true'
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+        run: |
+          docker run --rm --read-only --user 10001 --entrypoint sh "$IMAGE" -c '
+            set -e
+            test -r /srv/certs/rds-global-bundle.pem
+            grep -q "BEGIN CERTIFICATE" /srv/certs/rds-global-bundle.pem
+            python -c "import app.main, app.db, app.models"
+            alembic heads | grep -q "(head)"
+            echo "image smoke test passed"'
+
       - name: Scan image with Trivy (fail on CRITICAL)
         if: steps.exists.outputs.found != 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

@@ -14,6 +14,9 @@ RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 COPY --from=build /install /usr/local
 WORKDIR /srv
 # RDS CA bundle: the app verifies the database's TLS certificate (sslmode=verify-full).
+# Create the directory first: ADD --chmod would give a NEW parent directory mode 644 too
+# (no execute bit), which the non-root user cannot enter.
+RUN mkdir -m 755 /srv/certs
 ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /srv/certs/rds-global-bundle.pem
 COPY alembic.ini ./
 COPY alembic ./alembic
