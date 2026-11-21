@@ -196,8 +196,9 @@ resource "aws_db_parameter_group" "postgres" {
   description = "${var.name} PostgreSQL ${var.pg_engine_version}"
 
   parameter {
-    name  = "rds.force_ssl"
-    value = "1" # TLS required for every connection
+    name         = "rds.force_ssl"
+    value        = "1"              # TLS required for every connection
+    apply_method = "pending-reboot" # static parameter; set at instance creation (no perpetual diff)
   }
 
   parameter {
