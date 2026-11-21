@@ -63,3 +63,8 @@ cors:
 # Waiting-room state (organiser controls write the queue's META item).
 queue:
   table: surgegate-dev-queue
+
+# Every /book/{event}/... request needs the waiting room's booking pass (X-Booking-Pass).
+bookingPass:
+  required: true
+  secretId: surgegate/dev/queue/pass-key

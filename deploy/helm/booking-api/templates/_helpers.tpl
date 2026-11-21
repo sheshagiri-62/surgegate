@@ -18,6 +18,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.database.instanceId | quote }}
 - name: QUEUE_TABLE
   value: {{ .Values.queue.table | quote }}
+- name: BOOKING_PASS_REQUIRED
+  value: {{ .Values.bookingPass.required | quote }}
+- name: BOOKING_PASS_SECRET_ID
+  value: {{ .Values.bookingPass.secretId | quote }}
 {{- end -}}
 
 

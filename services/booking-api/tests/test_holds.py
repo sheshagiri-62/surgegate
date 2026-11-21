@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
-from tests.helpers import buyer, organiser
+from tests.helpers import admitted_buyer, buyer, organiser
 from tests.test_organiser import create, upload
 
 pytestmark = pytest.mark.integration
@@ -27,7 +27,10 @@ def open_event(api, per_buyer_limit=4, csv=TEN_SEATS, **times):
     ev = create(api, org, **body)
     assert upload(api, org, ev["id"], csv).status_code == 200
     seat_ids = [
-        s["id"] for s in api.get(f"/book/{ev['id']}/seats", headers=buyer()).json()["seats"]
+        s["id"]
+        for s in api.get(f"/book/{ev['id']}/seats", headers=admitted_buyer(ev["id"])).json()[
+            "seats"
+        ]
     ]
     return ev["id"], seat_ids
 

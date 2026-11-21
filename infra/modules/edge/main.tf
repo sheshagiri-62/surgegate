@@ -207,6 +207,26 @@ resource "aws_cloudfront_cache_policy" "serving" {
   }
 }
 
+# Booking pass at the edge (blueprint step 7): requests to /book/* without a valid pass are
+# refused by CloudFront and never reach the cluster. PENDING CloudFront verification.
+# The pass key is copied into the KeyValueStore once after verification (see the Day 6 Task 2
+# report): Terraform never holds its value (write-only secret).
+resource "aws_cloudfront_key_value_store" "edge" {
+  count   = var.cloudfront_enabled ? 1 : 0
+  name    = "${var.name}-edge"
+  comment = "Keys the edge needs (pass-key: booking-pass HMAC key)"
+}
+
+resource "aws_cloudfront_function" "booking_pass" {
+  count                        = var.cloudfront_enabled ? 1 : 0
+  name                         = "${var.name}-booking-pass"
+  runtime                      = "cloudfront-js-2.0"
+  comment                      = "Refuse /book/* without a valid booking pass"
+  publish                      = true
+  code                         = file("${path.module}/functions/booking_pass.js")
+  key_value_store_associations = [aws_cloudfront_key_value_store.edge[0].arn]
+}
+
 # Attached only while the ALB doesn't exist: a clear 503 instead of a confusing 502.
 resource "aws_cloudfront_function" "origin_down" {
   name    = "${var.name}-origin-down"
@@ -294,6 +314,23 @@ resource "aws_cloudfront_distribution" "api" {
       cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
       origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
       compress                 = true
+    }
+  }
+
+  # /book/*: booking API, only with a valid booking pass (checked here, then again in the API).
+  ordered_cache_behavior {
+    path_pattern             = "/book/*"
+    target_origin_id         = "api"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+    compress                 = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = var.origin_enabled ? aws_cloudfront_function.booking_pass[0].arn : aws_cloudfront_function.origin_down.arn
     }
   }
 

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app import cache
 from app.auth import AnyUser, Buyer
+from app.booking_pass import BookingPass
 from app.db import get_session
 from app.holds import HoldError, create_hold
 from app.models import Event, Seat
@@ -68,7 +69,9 @@ def load_seat_map(db: Session, event_id: uuid.UUID) -> dict | None:
 
 
 @router.get("/{event_id}/seats")
-def seat_map(event_id: uuid.UUID, user: AnyUser, db: DB, response: Response) -> dict:
+def seat_map(
+    event_id: uuid.UUID, user: AnyUser, booking_pass: BookingPass, db: DB, response: Response
+) -> dict:
     """Seat map with each seat's status. Served from Redis; may lag a moment behind holds."""
     data, source = cache.get_seat_map(str(event_id), lambda: load_seat_map(db, event_id))
     if data is None:
@@ -84,7 +87,9 @@ def seat_map(event_id: uuid.UUID, user: AnyUser, db: DB, response: Response) -> 
     response_model=HoldOut,
     responses={409: {"description": "seat taken, limit reached, or sale not open"}},
 )
-def hold_seats(event_id: uuid.UUID, body: HoldCreate, buyer: Buyer, db: DB):
+def hold_seats(
+    event_id: uuid.UUID, body: HoldCreate, buyer: Buyer, booking_pass: BookingPass, db: DB
+):
     """Hold seats for 10 minutes. Exactly one buyer can ever hold a given seat."""
     try:
         result = create_hold(db, event_id, buyer.sub, body.seat_ids)
