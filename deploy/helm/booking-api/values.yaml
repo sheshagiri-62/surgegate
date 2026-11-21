@@ -40,3 +40,12 @@ database:
 # alembic upgrade head as an Argo CD Sync hook Job (wave -5) before the pods roll out.
 migrations:
   enabled: true
+
+# Cognito (terraform output cognito_user_pool_id / cognito_client_ids). Not secret: these IDs are
+# public by design (the browser uses them to sign in).
+auth:
+  userPoolId: ap-south-1_phaiS0DT0
+  clientIds:
+    - aaaemg3vc5gjrerk026jh5r9e # buyer-web
+    - 4r1b379rs37m8mq284e35esfha # organiser-web
+    - 7jf95pjsnjqg043d0ing7rngv5 # test (dev scripts)

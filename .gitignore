@@ -64,3 +64,6 @@ tests/load/results/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Lambda zips built by Terraform (archive_file)
+infra/modules/*/.build/

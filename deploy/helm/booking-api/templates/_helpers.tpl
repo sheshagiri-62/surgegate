@@ -17,3 +17,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: DB_INSTANCE_ID
   value: {{ .Values.database.instanceId | quote }}
 {{- end -}}
+
+
+{{/* Cognito settings for JWT checks (app/auth.py). */}}
+{{- define "booking-api.authEnv" -}}
+- name: COGNITO_USER_POOL_ID
+  value: {{ .Values.auth.userPoolId | quote }}
+- name: COGNITO_CLIENT_IDS
+  value: {{ join "," .Values.auth.clientIds | quote }}
+{{- end -}}

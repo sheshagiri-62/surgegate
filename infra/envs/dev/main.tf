@@ -158,3 +158,14 @@ module "data" {
   redis_node_type   = "cache.t4g.micro"
   redis_replicas    = 0 # dev: 1 node (demo: primary + replica)
 }
+
+# ---------------------------------------------------------------------------
+# Identity: Cognito user pool (buyer / organiser groups, tenant_id claim). Persistent, no
+# hourly cost; free up to 10,000 monthly active users.
+# ---------------------------------------------------------------------------
+module "identity" {
+  source = "../../modules/identity"
+
+  name               = local.name
+  enable_test_client = true # password-auth client for scripts and tests (dev only)
+}
