@@ -21,8 +21,16 @@ from app.main import app
 pytestmark = pytest.mark.integration
 
 # How to call each organiser route with a VALID request (so only the tenant check can stop it).
+# "prepare": calls the OWNER makes first, so the route has something to act on.
+OPEN_QUEUE = ("PUT", "/org/events/{event_id}/queue", {"admission_rate": 100})
 RECIPES = {
     ("GET", "/org/events/{event_id}"): {},
+    ("PUT", "/org/events/{event_id}/queue"): {"json": {"admission_rate": 100}},
+    ("PATCH", "/org/events/{event_id}/queue"): {
+        "json": {"admission_rate": 1},  # a write that is valid in any queue state
+        "prepare": [OPEN_QUEUE],
+    },
+    ("GET", "/org/events/{event_id}/queue"): {"prepare": [OPEN_QUEUE]},
     ("PUT", "/org/events/{event_id}/seats"): {
         "content": b"section,row,number,zone,price_inr\nX,1,1,gold,1\n",
         "headers": {"Content-Type": "text/csv"},
@@ -43,8 +51,9 @@ def organiser_event_routes():
     return routes
 
 
-def snapshot(engine, event_id):
-    """Everything about the event that a cross-tenant call could change."""
+def snapshot(engine, event_id, queue_table=None):
+    """Everything about the event that a cross-tenant call could change (PostgreSQL rows and
+    the waiting-room state in DynamoDB)."""
     with engine.connect() as conn:
         event = conn.execute(
             text("SELECT to_jsonb(e) FROM events e WHERE id = :e"), {"e": event_id}
@@ -57,7 +66,10 @@ def snapshot(engine, event_id):
             .scalars()
             .all()
         )
-    return event, seats
+    queue = None
+    if queue_table is not None:
+        queue = queue_table.get_item(Key={"PK": f"EVENT#{event_id}", "SK": "META"}).get("Item")
+    return event, seats, queue
 
 
 def test_every_organiser_route_has_an_attack_recipe():
@@ -66,13 +78,17 @@ def test_every_organiser_route_has_an_attack_recipe():
 
 
 @pytest.mark.parametrize(("method", "path"), organiser_event_routes())
-def test_other_tenant_gets_404_and_changes_nothing(api, migrated_engine, method, path):
+def test_other_tenant_gets_404_and_changes_nothing(api, migrated_engine, queue_table, method, path):
     org_a, org_b = organiser(), organiser()
     event_id = create(api, org_a)["id"]
     assert upload(api, org_a, event_id, SEATS_CSV).status_code == 200
-    before = snapshot(migrated_engine, event_id)
-
     recipe = RECIPES[(method, path)]
+    for prep_method, prep_path, prep_json in recipe.get("prepare", []):
+        prep_url = prep_path.replace("{event_id}", event_id)
+        r = api.request(prep_method, prep_url, json=prep_json, headers=org_a)
+        assert r.status_code < 300, r.text
+    before = snapshot(migrated_engine, event_id, queue_table)
+
     url = path.replace("{event_id}", event_id)
     r = api.request(
         method,
@@ -94,7 +110,7 @@ def test_other_tenant_gets_404_and_changes_nothing(api, migrated_engine, method,
     )
     assert (r2.status_code, r2.json()) == (r.status_code, r.json())
 
-    assert snapshot(migrated_engine, event_id) == before  # A's data untouched
+    assert snapshot(migrated_engine, event_id, queue_table) == before  # A's data untouched
 
     # And the recipe is valid: the owner CAN make the same call.
     owner = api.request(

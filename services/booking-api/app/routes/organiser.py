@@ -15,11 +15,19 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app import cache
+from app import cache, queue_control
 from app.auth import Organiser
 from app.db import get_session
 from app.models import Event, Seat, SeatStatus, Tenant
-from app.schemas import EventCreate, EventOut, SeatMapUploaded, ZoneSummary
+from app.schemas import (
+    EventCreate,
+    EventOut,
+    QueueChange,
+    QueueOpen,
+    QueueState,
+    SeatMapUploaded,
+    ZoneSummary,
+)
 from app.seatmap_csv import SeatMapError, parse_seat_map
 
 router = APIRouter(prefix="/org", tags=["organiser"])
@@ -142,3 +150,38 @@ async def upload_seat_map(event_id: uuid.UUID, request: Request, org: Organiser,
     cache.invalidate_seat_map(str(event.id))
     zones = _zones(db, [event.id]).get(event.id, [])
     return SeatMapUploaded(event_id=event.id, seat_count=len(seats), zones=zones)
+
+
+# --- Waiting room controls (Booking API -> DynamoDB queue table) ----------------------------
+
+
+def _queue_call(fn, *args):
+    try:
+        return fn(*args)
+    except queue_control.QueueError as err:
+        raise HTTPException(err.status, err.detail) from err
+
+
+@router.put("/events/{event_id}/queue", response_model=QueueState, status_code=201)
+def open_waiting_room(event_id: uuid.UUID, body: QueueOpen, org: Organiser, db: DB):
+    """Open the waiting room: pre-queue until the sale starts (then shuffled), or open."""
+    event = _own_event(db, org, event_id)
+    return _queue_call(
+        queue_control.open_queue, event.id, event.sale_starts_at, body.admission_rate
+    )
+
+
+@router.patch("/events/{event_id}/queue", response_model=QueueState)
+def change_waiting_room(event_id: uuid.UUID, body: QueueChange, org: Organiser, db: DB):
+    """Pause, resume, or change the admission rate."""
+    event = _own_event(db, org, event_id)
+    return _queue_call(queue_control.change, event.id, body.action, body.admission_rate)
+
+
+@router.get("/events/{event_id}/queue", response_model=QueueState)
+def waiting_room(event_id: uuid.UUID, org: Organiser, db: DB):
+    event = _own_event(db, org, event_id)
+    item = queue_control.get(event.id)
+    if item is None:
+        raise HTTPException(404, "no waiting room for this event")
+    return queue_control.summary(item)
