@@ -70,3 +70,6 @@ infra/modules/*/.build/
 
 # k6 load-test tokens (short-lived, written by tests/load/k6/load_users.py)
 .load_tokens.json
+
+# make up: snapshot chosen for the restore (written by the Makefile)
+infra/envs/*/.restore_snapshot
