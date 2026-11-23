@@ -1,13 +1,14 @@
 # Shared ruff settings for every Python service (booking-api, queue Lambdas, workers, consumers).
 target-version = "py312"
 line-length = 100
+extend-exclude = ["services/workers/src/sg_workers/_vendor"] # vendored, unmodified
 
 [lint]
 # E/W pycodestyle, F pyflakes, I isort, B bugbear, UP pyupgrade, S bandit (security)
 select = ["E", "W", "F", "I", "B", "UP", "S"]
 
 [lint.isort]
-known-first-party = ["app", "sg_queue"] # each service's own package
+known-first-party = ["app", "sg_queue", "sg_workers"] # each service's own package
 
 [lint.per-file-ignores]
 "**/tests/**" = ["S101"] # assert is fine in pytest

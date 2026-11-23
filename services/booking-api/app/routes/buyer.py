@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import cache, sale_events
+from app import cache, hold_timer, sale_events
 from app.auth import AnyUser, Buyer
 from app.booking_pass import BookingPass
 from app.db import get_session
@@ -96,6 +96,14 @@ def hold_seats(
     except HoldError as err:
         return JSONResponse(
             status_code=err.status, content={"detail": err.detail, **jsonable(err.extra)}
+        )
+    # The 10-minute release timer must run; otherwise give the seats back at once.
+    if not hold_timer.start(result.hold_id, event_id):
+        hold_timer.release_now(db, result.hold_id)
+        cache.invalidate_seat_map(str(event_id))
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"detail": "could not start the hold timer; seats released, please try again"},
         )
     sale_events.publish(
         "seat_held",

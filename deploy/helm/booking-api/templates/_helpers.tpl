@@ -20,6 +20,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.queue.table | quote }}
 - name: SALE_EVENTS_STREAM
   value: {{ .Values.saleEvents.stream | quote }}
+- name: HOLD_TIMER_ARN
+  value: {{ .Values.holdTimer.arn | quote }}
 - name: BOOKING_PASS_REQUIRED
   value: {{ .Values.bookingPass.required | quote }}
 - name: BOOKING_PASS_SECRET_ID

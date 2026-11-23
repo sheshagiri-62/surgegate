@@ -1,0 +1,4 @@
+# Lambda code: standard library + boto3 (runtime) + vendored pg8000 (src/sg_workers/_vendor).
+boto3==1.44.9
+pytest==9.2.0
+ruff==0.17.6

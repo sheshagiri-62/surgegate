@@ -155,9 +155,12 @@ module "data" {
   vpc_id          = module.network.vpc_id
   data_subnet_ids = module.network.data_subnet_ids
 
-  compute_enabled           = var.enable_data
-  client_security_group_ids = var.enable_eks ? [module.eks[0].node_security_group_id] : []
-  restore_snapshot_id       = var.restore_snapshot_id
+  compute_enabled = var.enable_data
+  client_security_group_ids = concat(
+    var.enable_eks ? [module.eks[0].node_security_group_id] : [],
+    [module.async.release_security_group_id], # hold-release Lambda
+  )
+  restore_snapshot_id = var.restore_snapshot_id
 
   pg_instance_class = "db.t4g.micro"
   pg_multi_az       = false # dev: single-AZ (demo: Multi-AZ)
@@ -205,4 +208,21 @@ module "events" {
   name           = local.name
   stream_enabled = var.enable_kinesis
   shard_count    = 1
+}
+
+# ---------------------------------------------------------------------------
+# Async work: the 10-minute hold timer (Step Functions + release Lambda in the VPC).
+# Pay per use; persistent.
+# ---------------------------------------------------------------------------
+module "async" {
+  source = "../../modules/async"
+
+  name               = local.name
+  source_dir         = "${path.root}/../../../services/workers/src"
+  vpc_id             = module.network.vpc_id
+  private_subnet_ids = module.network.private_subnet_ids
+  db_instance_id     = "${local.name}-pg"
+  kms_key_arn        = module.data.kms_key_arn
+  sale_events_stream = module.events.stream_name
+  sale_events_arn    = module.events.stream_arn
 }

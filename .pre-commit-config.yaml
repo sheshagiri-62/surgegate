@@ -1,5 +1,7 @@
 # Install once:   make init        (runs `pre-commit install`)
 # Run manually:   make lint        (runs every hook on every file)
+# Vendored third-party code is kept byte-for-byte as published.
+exclude: ^services/workers/src/sg_workers/_vendor/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
