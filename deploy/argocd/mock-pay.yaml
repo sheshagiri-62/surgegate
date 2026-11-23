@@ -1,0 +1,27 @@
+# mock-pay (ADR 004): Razorpay-shaped mock payment provider. Dev/test only.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mock-pay
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io # deleting the app deletes its resources
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sheshagiri-62/surgegate.git
+    targetRevision: main
+    path: deploy/helm/mock-pay
+    helm:
+      releaseName: mock-pay
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mock-pay
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

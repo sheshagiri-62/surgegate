@@ -105,3 +105,18 @@ variable "debug_ingress_cidr" {
     error_message = "Only a single address (/32) may be opened."
   }
 }
+
+variable "extra_routes" {
+  description = <<-EOT
+    More in-cluster services behind the same ALB: key => {path_patterns, priority,
+    health_check_path}. Each gets a target group "<name>-<key>" (pods join it through a
+    TargetGroupBinding) and a listener rule that needs BOTH the paths and the origin-verify
+    header. Same target port as the booking API, so the existing security-group rules apply.
+  EOT
+  type = map(object({
+    path_patterns     = list(string)
+    priority          = number
+    health_check_path = optional(string, "/healthz")
+  }))
+  default = {}
+}

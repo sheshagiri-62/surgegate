@@ -1,0 +1,44 @@
+# mock-pay chart values (dev). ADR 004: a Razorpay-shaped mock payment provider. DEV ONLY.
+# image.tag is changed ONLY by .github/workflows/build-deploy-mock-pay.yml (git SHA of the build).
+image:
+  repository: 968077439619.dkr.ecr.ap-south-1.amazonaws.com/surgegate/mock-pay
+  tag: "not-built-yet" # set by build-deploy-mock-pay
+  pullPolicy: IfNotPresent
+
+# One replica: orders live in memory (a restart forgets unpaid mock orders).
+replicaCount: 1
+
+containerPort: 8000
+
+service:
+  port: 80
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+
+# CloudFront -> ALB rule /mockpay/checkout/* -> this target group (infra/modules/edge).
+# /v1/* and /mockpay/test/* are NOT routed by the ALB: cluster only (kubectl port-forward).
+targetGroupBinding:
+  enabled: true
+  targetGroupName: surgegate-dev-mock-pay
+
+serviceAccount:
+  name: mock-pay # must match infra/envs/dev/mock_pay.tf (Pod Identity association)
+
+aws:
+  region: ap-south-1
+
+# key_id, key_secret, webhook_secret (Terraform-generated; never printed).
+secretId: surgegate/dev/data/razorpay
+
+# Where webhooks go: the public edge, the same path real Razorpay would call.
+webhookUrl: https://d1t9vww2xtyvsz.cloudfront.net/webhooks/razorpay
+
+# Where the checkout may send buyers back. Add the buyer CloudFront origin when the buyer site
+# is deployed there.
+callbackAllowOrigins:
+  - http://localhost:3000

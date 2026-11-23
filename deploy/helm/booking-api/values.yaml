@@ -76,3 +76,15 @@ saleEvents:
 # 10-minute hold timer (Step Functions); one execution per hold.
 holdTimer:
   arn: arn:aws:states:ap-south-1:968077439619:stateMachine:surgegate-dev-hold-timer
+
+# Payments (ADR 004): the Razorpay-shaped mock for now; PAYMENT_PROVIDER=razorpay later.
+payments:
+  provider: mock
+  secretId: surgegate/dev/data/razorpay # key_id, key_secret, webhook_secret (Terraform-generated)
+  mock:
+    apiUrl: http://mock-pay.mock-pay.svc.cluster.local # /v1/orders, cluster only
+    checkoutBase: https://d1t9vww2xtyvsz.cloudfront.net # /mockpay/checkout/* via CloudFront
+  # Where the checkout may send buyers back. Add the buyer CloudFront origin when the buyer
+  # site is deployed there.
+  returnOrigins:
+    - http://localhost:3000

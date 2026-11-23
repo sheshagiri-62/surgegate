@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import SeatPicker from "@/components/SeatPicker";
 import SignIn from "@/components/SignIn";
-import { ApiError, getSeatMap, holdSeats, needsQueue, type Hold } from "@/lib/api";
+import { ApiError, createOrder, getSeatMap, holdSeats, needsQueue, type Hold } from "@/lib/api";
+import { canPay, MIN_SECONDS_TO_PAY, orderKey } from "@/lib/checkout";
 import { loadTokens, signOut, type Tokens } from "@/lib/cognito";
 import { clearPass, loadPass } from "@/lib/queue";
 import {
@@ -97,6 +98,37 @@ function EventPage() {
     }
   }
 
+  async function onPay() {
+    if (!tokens || !hold) return;
+    const bookingPass = loadPass(eventId);
+    if (!bookingPass) return toQueue();
+    setBusy(true);
+    setMessage("");
+    try {
+      const order = await createOrder(
+        eventId,
+        hold.hold_id,
+        orderKey(hold.hold_id), // same key on retry/reload -> same order
+        `${window.location.origin}/order/`,
+        tokens.accessToken,
+        bookingPass.booking_pass,
+      );
+      if (order.checkout?.type === "redirect") {
+        window.location.assign(order.checkout.url); // the provider's checkout page
+        return;
+      }
+      setMessage("This payment method is not available yet.");
+    } catch (err) {
+      if (needsQueue(err)) {
+        toQueue();
+      } else {
+        setMessage(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!eventId) return <p>No event selected.</p>;
   if (!tokens) return <SignIn onSignedIn={setTokens} />;
   if (!map) return <p>{message || "Loading seats…"}</p>;
@@ -139,7 +171,20 @@ function EventPage() {
             <>
               <strong>Held: {hold.seats.map((s) => s.label).join(", ")}</strong> ·{" "}
               {formatInr(hold.amount_paise)} · time left <span className="font-mono">{holdLeft}</span>
-              <p className="text-sm">Payment comes in Phase 4; for now the hold proves the seats are yours.</p>
+              {canPay(hold.expires_at, now) ? (
+                <button
+                  className="mt-3 block rounded bg-emerald-700 px-5 py-2 font-medium text-white disabled:opacity-40"
+                  disabled={busy}
+                  onClick={onPay}
+                >
+                  {busy ? "Starting payment…" : `Pay ${formatInr(hold.amount_paise)}`}
+                </button>
+              ) : (
+                <p className="text-sm">
+                  Less than {MIN_SECONDS_TO_PAY} seconds left: not enough time to pay. Hold the seats
+                  again when the hold ends.
+                </p>
+              )}
             </>
           ) : (
             <strong>Your hold expired. The seats go back on sale.</strong>

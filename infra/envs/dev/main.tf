@@ -141,6 +141,10 @@ module "edge" {
   queue_api_domain = trimprefix(module.queue.api_endpoint, "https://")
   # TEMPORARY demo access to the ALB: pass -var=debug_ingress_cidr=<ip>/32, then apply without it.
   debug_ingress_cidr = var.debug_ingress_cidr
+  # mock-pay (ADR 004): ONLY the public checkout page; /v1/* and /mockpay/test/* stay in-cluster.
+  extra_routes = {
+    "mock-pay" = { path_patterns = ["/mockpay/checkout/*"], priority = 5 }
+  }
 }
 
 # ---------------------------------------------------------------------------

@@ -7,20 +7,21 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models import Base
 
-TABLES = {"tenants", "events", "seats", "holds", "orders", "order_items"}
+TABLES = {"tenants", "events", "seats", "holds", "orders", "order_items", "payments"}
 
 
-def test_metadata_has_the_six_booking_tables():
+def test_metadata_has_the_booking_tables():
     assert TABLES <= set(Base.metadata.tables)
 
 
-def test_order_items_seat_id_is_unique_in_the_model():
-    uniques = {
-        tuple(c.columns.keys())
-        for c in Base.metadata.tables["order_items"].constraints
-        if c.__class__.__name__ == "UniqueConstraint"
-    }
-    assert ("seat_id",) in uniques
+def test_a_sold_seat_is_unique_in_the_model():
+    (ix,) = [
+        i
+        for i in Base.metadata.tables["order_items"].indexes
+        if i.name == "uq_order_items_sold_seat"
+    ]
+    assert ix.unique and [c.name for c in ix.columns] == ["seat_id"]
+    assert str(ix.dialect_options["postgresql"]["where"]) == "sold"
 
 
 @pytest.mark.integration
@@ -71,10 +72,44 @@ def _seat(conn, event, label="A-1-1") -> uuid.UUID:
 
 
 @pytest.mark.integration
-def test_a_seat_can_be_in_only_one_order(migrated_engine):
+def test_a_seat_can_be_sold_in_only_one_order(migrated_engine):
+    """Unsold items (failed/expired orders) may repeat a seat; a second SOLD item may not."""
     with migrated_engine.connect() as conn:
         event = _event(conn)
         seat = _seat(conn, event)
+        orders = []
+        for _ in range(3):  # three holds over time for the same seat, one order each
+            hold, order = uuid.uuid4(), uuid.uuid4()
+            conn.execute(
+                text(
+                    "INSERT INTO holds (id, event_id, buyer_id, seat_count, expires_at) "
+                    "VALUES (:id, :e, 'buyer', 1, now())"
+                ),
+                {"id": hold, "e": event},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO orders (id, event_id, hold_id, buyer_id, idempotency_key, "
+                    "amount_paise) VALUES (:id, :e, :h, 'buyer', :k, 50000)"
+                ),
+                {"id": order, "e": event, "h": hold, "k": uuid.uuid4()},
+            )
+            orders.append(order)
+        item = text(
+            "INSERT INTO order_items (id, order_id, seat_id, price_paise, sold) "
+            "VALUES (:id, :o, :s, 50000, :sold)"
+        )
+        conn.execute(item, {"id": uuid.uuid4(), "o": orders[0], "s": seat, "sold": False})
+        conn.execute(item, {"id": uuid.uuid4(), "o": orders[1], "s": seat, "sold": True})
+        with pytest.raises(IntegrityError, match="uq_order_items_sold_seat"):
+            conn.execute(item, {"id": uuid.uuid4(), "o": orders[2], "s": seat, "sold": True})
+        conn.rollback()
+
+
+@pytest.mark.integration
+def test_one_live_order_per_hold(migrated_engine):
+    with migrated_engine.connect() as conn:
+        event = _event(conn)
         hold = uuid.uuid4()
         conn.execute(
             text(
@@ -83,28 +118,20 @@ def test_a_seat_can_be_in_only_one_order(migrated_engine):
             ),
             {"id": hold, "e": event},
         )
-        for _ in range(2):
-            order = uuid.uuid4()
+        ins = text(
+            "INSERT INTO orders (id, event_id, hold_id, buyer_id, idempotency_key, amount_paise, "
+            "status) VALUES (:id, :e, :h, 'buyer', :k, 1, CAST(:st AS order_status))"
+        )
+        conn.execute(
+            ins, {"id": uuid.uuid4(), "e": event, "h": hold, "k": uuid.uuid4(), "st": "failed"}
+        )
+        conn.execute(
+            ins, {"id": uuid.uuid4(), "e": event, "h": hold, "k": uuid.uuid4(), "st": "pending"}
+        )
+        with pytest.raises(IntegrityError, match="uq_orders_live_hold"):
             conn.execute(
-                text(
-                    "INSERT INTO orders (id, event_id, hold_id, buyer_id, idempotency_key, "
-                    "amount_paise) VALUES (:id, :e, :h, 'buyer', :k, 50000)"
-                ),
-                {"id": order, "e": event, "h": hold, "k": uuid.uuid4()},
+                ins, {"id": uuid.uuid4(), "e": event, "h": hold, "k": uuid.uuid4(), "st": "pending"}
             )
-        with pytest.raises(IntegrityError, match="uq_order_items_seat_id"):
-            for order_id in (
-                conn.execute(text("SELECT id FROM orders WHERE hold_id = :h"), {"h": hold})
-                .scalars()
-                .all()
-            ):
-                conn.execute(
-                    text(
-                        "INSERT INTO order_items (id, order_id, seat_id, price_paise) "
-                        "VALUES (:id, :o, :s, 50000)"
-                    ),
-                    {"id": uuid.uuid4(), "o": order_id, "s": seat},
-                )
         conn.rollback()
 
 

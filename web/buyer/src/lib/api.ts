@@ -59,3 +59,50 @@ export function holdSeats(
     body: JSON.stringify({ seat_ids: seatIds }),
   });
 }
+
+// --- orders (Day 7 Task 3) ------------------------------------------------------------------
+
+export type Checkout =
+  | { type: "redirect"; url: string } // mock provider (ADR 004)
+  | { type: "razorpay_js"; key_id: string; order_id: string }; // Razorpay checkout.js, later
+
+export interface Order {
+  order_id: string;
+  status: "pending" | "paid" | "failed" | "refunded";
+  event_id: string;
+  hold_id: string;
+  hold_expires_at: string;
+  seats: string[];
+  amount_paise: number;
+  currency: string;
+  provider: string;
+  provider_order_id: string | null;
+  checkout: Checkout | null;
+  created_at: string;
+  paid_at: string | null;
+}
+
+/** Same Idempotency-Key = same order (201 the first time, 200 after). */
+export function createOrder(
+  eventId: string,
+  holdId: string,
+  idempotencyKey: string,
+  returnUrl: string,
+  token: string,
+  bookingPass: string,
+): Promise<Order> {
+  return request<Order>(`/book/${eventId}/orders`, token, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
+      ...passHeader(bookingPass),
+    },
+    body: JSON.stringify({ hold_id: holdId, return_url: returnUrl }),
+  });
+}
+
+/** Outside /book/*: works after the booking pass expires; owner only. */
+export function getOrder(orderId: string, token: string): Promise<Order> {
+  return request<Order>(`/orders/${orderId}`, token);
+}

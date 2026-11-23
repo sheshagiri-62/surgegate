@@ -43,6 +43,7 @@ spec:
             {{- include "booking-api.authEnv" . | nindent 12 }}
             {{- include "booking-api.redisEnv" . | nindent 12 }}
             {{- include "booking-api.corsEnv" . | nindent 12 }}
+            {{- include "booking-api.paymentsEnv" . | nindent 12 }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}
