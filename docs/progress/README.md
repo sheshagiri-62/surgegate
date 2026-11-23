@@ -31,3 +31,6 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-21 | 5 | Task 4 — `serving` endpoint (public, API Gateway; CloudFront 5 s cache pending verification) | [task-04-serving](day-05/task-04-serving.md) |
 | 2026-11-22 | 6 | Task 1 — Valve Lambda (every minute, admission rate) + organiser pause/resume/rate | [task-01-valve](day-06/task-01-valve.md) |
 | 2026-11-22 | 6 | Task 2 — Admit → 15-minute booking pass; booking API verifies it (CloudFront check pending) | [task-02-admit-pass](day-06/task-02-admit-pass.md) |
+| 2026-11-22 | 6 | Task 3 — Buyer waiting-room page (countdown, position, wait, auto-redirect) | [task-03-waiting-room-page](day-06/task-03-waiting-room-page.md) |
+| 2026-11-22 | 6 | Task 4 — k6: 1,000 users; 977 joined + admitted (Lambda concurrency 10) | [task-04-k6](day-06/task-04-k6.md) |
+| 2026-11-22 | — | M3 partly met — Phase 3 milestone | [phase-3-milestone](phase-3-milestone.md) |
