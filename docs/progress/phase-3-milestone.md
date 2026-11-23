@@ -3,21 +3,24 @@
 - **Checked on:** 2026-11-22 (early hours, same session as Day 3; Days 5–6 brought forward)
 - **"Done when"** (plan): *1,000 simulated buyers join, the pre-queue is shuffled, they are admitted
   at the set rate, and a request to `/book/*` without a valid pass is refused at the edge.*
-- **Result: partly met.**
+- **Result: MET on 2026-11-23** (re-run with the full 1,000 after the Lambda limit rose to 1,000
+  and CloudFront went live). The Day 6 partial result is kept below for comparison.
+- **Day 6 result: partly met.**
   - Shuffle: **met**.
   - Admission at the set rate: **met**.
   - 1,000 join: **977 / 1,000**, the rest throttled by the account's Lambda concurrency limit (10;
     increase requested).
   - `/book/*` refused without a pass: **met in the booking API, and at the edge since 23 Nov**
     (CloudFront approved).
-- **Update 2026-11-23:** CloudFront edge checks done (below). The k6 re-run with 1,000 users is next
-  (Lambda limit is now 1,000), and this file will be updated with its result.
+- **Update 2026-11-23:** CloudFront edge checks done, and the k6 re-run passed every threshold (below).
 
 ## Evidence
 
 | Condition | How it was checked | Result |
 | --- | --- | --- |
-| 1,000 simulated buyers join | k6 `tests/load/k6/queue.js`, 1,000 virtual users with real Cognito tokens, arriving over 60 s | **977 joined (97.7%)**. 23 failed after retries: Lambda `ConcurrentExecutions` peaked at the **account limit of 10**. **Re-run pending the quota increase** (`CASE_OPENED`) |
+| **1,000 simulated buyers join (re-run 23 Nov)** | k6 through **CloudFront** (`https://d1t9vww2xtyvsz.cloudfront.net`), 1,000 real Cognito accounts (deleted afterwards), no `/position` before the start (#37) | **All thresholds passed: 1,000 / 1,000 joined (100%), 1,000 / 1,000 admitted, 0 failed of 25,690 requests, 0 throttles.** Wait avg 218 s, p95 322 s. Lambda: serving **70** invocations (the other ~20,000 polls answered by CloudFront's cache), position 1,010, peak concurrency 168 |
+| **Shuffle + rate (re-run 23 Nov)** | `check_queue.py` | positions 1–1,000 unique without gaps; the 10 earliest arrivals → 556, 9, 687, 548, 708, 997, 258, 707, 749, 590; **admitted per minute: 250 / 250 / 250 / 250** |
+| (Day 6) 1,000 simulated buyers join | k6 `tests/load/k6/queue.js`, 1,000 virtual users with real Cognito tokens, arriving over 60 s | **977 joined (97.7%)**. 23 failed after retries: Lambda `ConcurrentExecutions` peaked at the **account limit of 10**. **Re-run pending the quota increase** (`CASE_OPENED`) |
 | The pre-queue is shuffled | `check_queue.py` on DynamoDB after the run; unit tests; a manual 62-person test | All 977 joined before the start; **the 10 earliest arrivals got positions 267, 307, 214, 41, 304, 425, 385, 218, 511, 334**; positions 1–977 unique without gaps |
 | Admitted at the set rate | Rate 250/min. Valve logs; earlier live test at 100/min | serving went up by 250 per minute up to 977; **all 977 admitted**. 100/min test: 100 → 200 → 300 at 19:17/18/19. Pause: a tick while paused admitted 0 |
 | `/book/*` without a valid pass is refused **in the booking API** | Deployed API, real tokens | no pass → `403 booking pass required`; tampered → forged; other event → refused; another user's pass → refused; valid → 200 |
@@ -59,7 +62,7 @@ svc/booking-api 18080:80`; `cd web/buyer && npm run dev`.
 
 ## Still to do for a full M3
 
-1. **Lambda limit is now 1,000** (since 23 Nov) → re-run k6 → expect 1,000/1,000 joins.
+1. ~~Lambda limit 1,000 → re-run k6~~ **Done 23 Nov: 1,000/1,000.**
 2. ~~CloudFront verification → edge refusal, 5 s cache~~ **Done 23 Nov.** The first deploy of the
    function failed at the edge with `SyntaxError: await in arguments not supported in 37`
    (`X-Cache: FunctionExecutionError`). Fixed, re-tested with `TestFunction` and live.
