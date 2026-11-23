@@ -138,6 +138,8 @@ module "edge" {
   domain_name            = var.domain_name
   # /queue/* -> API Gateway, /queue/*/serving cached 5 s (pending CloudFront verification)
   queue_api_domain = trimprefix(module.queue.api_endpoint, "https://")
+  # TEMPORARY demo access to the ALB: pass -var=debug_ingress_cidr=<ip>/32, then apply without it.
+  debug_ingress_cidr = var.debug_ingress_cidr
 }
 
 # ---------------------------------------------------------------------------

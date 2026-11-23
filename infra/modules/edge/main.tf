@@ -36,6 +36,18 @@ resource "aws_vpc_security_group_ingress_rule" "alb_from_cloudfront" {
   to_port           = 80
 }
 
+# Temporary demo/debug access for ONE address (e.g. to show live that a request without the
+# secret header gets 403). Empty by default; never set it in committed code.
+resource "aws_vpc_security_group_ingress_rule" "alb_debug" {
+  count             = var.debug_ingress_cidr != "" ? local.alb : 0
+  security_group_id = aws_security_group.alb[0].id
+  description       = "TEMPORARY debug access (remove after use)"
+  cidr_ipv4         = var.debug_ingress_cidr
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+}
+
 resource "aws_vpc_security_group_egress_rule" "alb_to_pods" {
   count                        = local.alb
   security_group_id            = aws_security_group.alb[0].id

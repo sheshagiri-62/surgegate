@@ -57,3 +57,9 @@ variable "token_shell" {
   type        = string
   default     = "bash"
 }
+
+variable "debug_ingress_cidr" {
+  description = "TEMPORARY /32 allowed to reach the ALB directly (demo only; never commit a value)."
+  type        = string
+  default     = ""
+}
