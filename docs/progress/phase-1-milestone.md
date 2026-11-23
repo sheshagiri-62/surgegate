@@ -15,7 +15,7 @@
 | It answers on public HTTPS `/healthz` | `curl https://d1t9vww2xtyvsz.cloudfront.net/healthz` | **`HTTP/1.1 200 OK`**, `{"status":"ok"}`, `server: uvicorn`, `Via: … (CloudFront)` |
 | HTTP is upgraded | `curl http://d1t9vww2xtyvsz.cloudfront.net/healthz` | `301 → https://…/healthz` |
 | The ALB can't be used directly | `curl http://surgegate-dev-api-1855927574.ap-south-1.elb.amazonaws.com/healthz` | **no connection** (timeout, exit 28): the ALB security group admits only the CloudFront origin-facing prefix list |
-| Requests without the secret header get 403 | ALB listener rules (`describe-rules`) | priority 10: `forward` if `X-Origin-Verify` matches; **default: `fixed-response 403`**. Not triggerable live from outside: only CloudFront can reach the ALB, and it always sets the header |
+| Requests without the secret header get 403 | ALB listener rules (`describe-rules`), **and live**: a temporary Terraform rule (`debug_ingress_cidr`) let one /32 reach the ALB directly, then it was removed | priority 10: `forward` if `X-Origin-Verify` matches; default `fixed-response 403`. **Live: no header → `HTTP/1.1 403 Forbidden`; wrong header value → `403`**. Rule removed (1 destroyed) → direct access back to no connection |
 | `make down` leaves nothing billable | `make down` + `billing-check` (Day 6), and direct AWS CLI checks after the `make` environment fix (#36) | EKS, EC2, LB, NAT, EIP, public ENIs, RDS, ElastiCache all empty |
 
 ## How to demo it

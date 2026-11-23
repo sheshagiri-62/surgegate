@@ -89,3 +89,13 @@ variable "queue_api_domain" {
   type        = string
   default     = ""
 }
+
+variable "debug_ingress_cidr" {
+  description = "TEMPORARY: one /32 allowed to reach the ALB directly (demo of the no-header 403). Empty = none."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.debug_ingress_cidr == "" || endswith(var.debug_ingress_cidr, "/32")
+    error_message = "Only a single address (/32) may be opened."
+  }
+}
