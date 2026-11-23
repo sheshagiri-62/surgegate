@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import cache
+from app import cache, sale_events
 from app.auth import AnyUser, Buyer
 from app.booking_pass import BookingPass
 from app.db import get_session
@@ -97,6 +97,17 @@ def hold_seats(
         return JSONResponse(
             status_code=err.status, content={"detail": err.detail, **jsonable(err.extra)}
         )
+    sale_events.publish(
+        "seat_held",
+        str(event_id),
+        {
+            "hold_id": str(result.hold_id),
+            "sub": buyer.sub,
+            "seats": [s["label"] for s in result.seats],
+            "amount_paise": result.amount_paise,
+            "expires_at": result.expires_at.isoformat(),
+        },
+    )
     return HoldOut(
         hold_id=result.hold_id,
         expires_at=result.expires_at,

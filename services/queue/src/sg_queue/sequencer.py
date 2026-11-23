@@ -22,7 +22,7 @@ import json
 import logging
 from collections import defaultdict
 
-from sg_queue import positions
+from sg_queue import positions, sale_events
 from sg_queue.common import META, pk, table
 
 log = logging.getLogger()
@@ -56,9 +56,22 @@ def handler(event, context):
                 raise LookupError(f"no queue for event {event_id}")
             pre_queue = status not in NUMBERED_STATUSES
             claimed = []
+            joined_events = []
             for _message_id, join in joins:
                 if positions.claim(join, pre_queue=pre_queue):
                     claimed.append(join["sub"])
+                    joined_events.append(
+                        sale_events.envelope(
+                            "joined",
+                            event_id,
+                            {
+                                "sub": join["sub"],
+                                "request_id": join["request_id"],
+                                "joined_at": join["joined_at"],
+                                "pre_queue": pre_queue,
+                            },
+                        )
+                    )
                 else:
                     stats["duplicates"] += 1
             stats["claimed"] += len(claimed)
@@ -68,6 +81,7 @@ def handler(event, context):
                 stats["pre_queue"] += len(claimed)
             else:
                 stats["placed"] += positions.assign(event_id, claimed)
+            stats["published"] = stats.get("published", 0) + sale_events.publish(joined_events)
         except Exception:
             log.exception("could not sequence joins for event %s", event_id)
             failures.extend({"itemIdentifier": mid} for mid, _ in joins)

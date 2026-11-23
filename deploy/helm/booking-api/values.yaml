@@ -68,3 +68,7 @@ queue:
 bookingPass:
   required: true
   secretId: surgegate/dev/queue/pass-key
+
+# Sale events (ADR 002): seat_held etc. go to this Kinesis stream (best-effort).
+saleEvents:
+  stream: surgegate-dev-sale-events

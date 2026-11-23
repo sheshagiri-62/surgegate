@@ -89,7 +89,7 @@ up: check-env ## Create ENV: plan, ask "yes" (or APPROVE=yes), apply, kubeconfig
 		echo "STOP: expected snapshot $(EXPECT_SNAPSHOT), found '$$snap'. Nothing created."; exit 1; fi; \
 	printf '%s' "$$snap" > $(RESTORE_FILE)
 	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=true -var=enable_eks=true \
-		-var=enable_data=true -var=restore_snapshot_id=$$(cat $(RESTORE_FILE)) -out=up.tfplan
+		-var=enable_data=true -var=enable_kinesis=true -var=restore_snapshot_id=$$(cat $(RESTORE_FILE)) -out=up.tfplan
 	@if [ "$(APPROVE)" != "yes" ]; then \
 		printf 'Apply this plan? It creates HOURLY-billed resources (NAT, EKS, nodes, ALB, RDS, Redis). Type yes: '; \
 		read ans; [ "$$ans" = "yes" ] || { echo "Not applied."; rm -f $(UP_PLAN); exit 1; }; fi
@@ -116,7 +116,7 @@ down: check-env ## Remove everything hourly in ENV (EKS, nodes, ALB, NAT, EIP, R
 	fi
 	terraform -chdir=$(ENV_DIR) init -input=false
 	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=false -var=enable_eks=false \
-		-var=enable_data=false -out=down.tfplan
+		-var=enable_data=false -var=enable_kinesis=false -out=down.tfplan
 	terraform -chdir=$(ENV_DIR) apply -input=false $(TF_LOCK) down.tfplan
 	@rm -f $(DOWN_PLAN)
 	@$(MAKE) --no-print-directory prune-snapshots ENV=$(ENV)

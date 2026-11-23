@@ -186,6 +186,15 @@ data "aws_iam_policy_document" "fn" {
   }
 
   dynamic "statement" {
+    for_each = contains(["sequencer", "admit"], each.key) && var.sale_events_arn != "" ? [1] : []
+    content {
+      sid       = "PublishSaleEvents"
+      actions   = ["kinesis:PutRecord", "kinesis:PutRecords"]
+      resources = [var.sale_events_arn]
+    }
+  }
+
+  dynamic "statement" {
     for_each = each.key == "admit" ? [1] : []
     content {
       sid       = "CheckAndMarkAdmission"
@@ -244,10 +253,11 @@ resource "aws_lambda_function" "fn" {
 
   environment {
     variables = {
-      QUEUE_TABLE      = var.table_name
-      JOIN_QUEUE_URL   = aws_sqs_queue.joins.url
-      TOKEN_KEY_SECRET = aws_secretsmanager_secret.token_key.arn
-      PASS_KEY_SECRET  = aws_secretsmanager_secret.pass_key.arn
+      QUEUE_TABLE        = var.table_name
+      JOIN_QUEUE_URL     = aws_sqs_queue.joins.url
+      TOKEN_KEY_SECRET   = aws_secretsmanager_secret.token_key.arn
+      PASS_KEY_SECRET    = aws_secretsmanager_secret.pass_key.arn
+      SALE_EVENTS_STREAM = var.sale_events_stream
     }
   }
 
