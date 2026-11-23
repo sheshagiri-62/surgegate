@@ -36,6 +36,32 @@ resource "aws_vpc_security_group_ingress_rule" "alb_from_cloudfront" {
   to_port           = 80
 }
 
+# CloudFront VPC origin: CloudFront creates a service-managed ENI in our private subnets and
+# reaches the internal ALB over AWS's network. No extra charge. Follows the ALB (dev up only).
+# Still HTTP on that private path: HTTPS needs a certificate, i.e. the domain (later).
+resource "aws_cloudfront_vpc_origin" "alb" {
+  count = var.cloudfront_enabled ? local.alb : 0
+
+  vpc_origin_endpoint_config {
+    name                   = "${var.name}-alb"
+    arn                    = aws_lb.this[0].arn
+    http_port              = 80
+    https_port             = 443
+    origin_protocol_policy = "http-only"
+    origin_ssl_protocols {
+      items    = ["TLSv1.2"]
+      quantity = 1
+    }
+  }
+
+  timeouts {
+    create = "30m"
+    delete = "30m"
+  }
+
+  tags = local.tags
+}
+
 # Temporary demo/debug access for ONE address (e.g. to show live that a request without the
 # secret header gets 403). Empty by default; never set it in committed code.
 resource "aws_vpc_security_group_ingress_rule" "alb_debug" {
@@ -73,11 +99,13 @@ resource "aws_vpc_security_group_ingress_rule" "nodes_from_alb" {
 # and make down removes it. Pods join the target group through a TargetGroupBinding.
 # ---------------------------------------------------------------------------
 resource "aws_lb" "this" {
-  count                      = local.alb
-  name                       = "${var.name}-api"
-  load_balancer_type         = "application"
-  internal                   = false
-  subnets                    = var.public_subnet_ids
+  count              = local.alb
+  name               = "${var.name}-api"
+  load_balancer_type = "application"
+  # Internal: no public address. CloudFront reaches it through a VPC origin (ADR 003 follow-up:
+  # the CloudFront -> ALB hop no longer crosses the internet). Without CloudFront it stays public.
+  internal                   = var.cloudfront_enabled
+  subnets                    = var.cloudfront_enabled ? var.private_subnet_ids : var.public_subnet_ids
   security_groups            = [aws_security_group.alb[0].id]
   drop_invalid_header_fields = true
   tags                       = local.tags
@@ -273,11 +301,23 @@ resource "aws_cloudfront_distribution" "api" {
     origin_id   = "api"
     domain_name = var.origin_enabled ? aws_lb.this[0].dns_name : local.placeholder_origin
 
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "http-only" # no domain → no certificate on the ALB (see ADR 003)
-      origin_ssl_protocols   = ["TLSv1.2"]
+    # Dev up: the internal ALB through the VPC origin (private path inside AWS).
+    dynamic "vpc_origin_config" {
+      for_each = var.origin_enabled ? [1] : []
+      content {
+        vpc_origin_id = aws_cloudfront_vpc_origin.alb[0].id
+      }
+    }
+
+    # Dev down: a placeholder (the origin_down function answers 503 before it is used).
+    dynamic "custom_origin_config" {
+      for_each = var.origin_enabled ? [] : [1]
+      content {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "http-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
     }
 
     custom_header {

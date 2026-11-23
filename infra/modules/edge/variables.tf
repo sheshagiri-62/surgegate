@@ -8,6 +8,12 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "private_subnet_ids" {
+  description = "Private subnets for the internal ALB (CloudFront VPC origin)."
+  type        = list(string)
+  default     = []
+}
+
 variable "public_subnet_ids" {
   description = "Public subnets (one per AZ) for the internet-facing ALB."
   type        = list(string)

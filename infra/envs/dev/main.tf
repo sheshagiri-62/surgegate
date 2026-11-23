@@ -132,6 +132,7 @@ module "edge" {
   origin_enabled         = var.enable_eks
   vpc_id                 = module.network.vpc_id
   public_subnet_ids      = module.network.public_subnet_ids
+  private_subnet_ids     = module.network.private_subnet_ids
   node_security_group_id = try(module.eks[0].node_security_group_id, null)
   target_group_name      = "${local.name}-booking-api"
   origin_verify_secret   = aws_secretsmanager_secret_version.origin_verify.secret_string
