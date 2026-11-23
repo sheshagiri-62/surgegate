@@ -34,7 +34,9 @@ async function handler(event) {
 
   let key;
   try {
-    key = JSON.parse(await kvs.get('pass-key'));
+    // cloudfront-js-2.0 does not allow `await` inside call arguments: await into a variable first.
+    const raw = await kvs.get('pass-key');
+    key = JSON.parse(raw);
   } catch (e) {
     return refuse('booking pass refused: verifier not configured', eventId);
   }
