@@ -127,6 +127,18 @@ data "aws_iam_policy_document" "pipe" {
     actions   = ["events:PutEvents"]
     resources = [aws_cloudwatch_event_bus.this.arn]
   }
+  statement {
+    sid       = "PipeErrorLogs"
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["${aws_cloudwatch_log_group.pipe.arn}:*"]
+  }
+}
+
+# Pipe errors (why a batch failed), with the failing record, kept 7 days.
+resource "aws_cloudwatch_log_group" "pipe" {
+  name              = "/aws/vendedlogs/pipes/${local.name}-to-bus"
+  retention_in_days = var.log_retention_days
+  tags              = local.tags
 }
 
 resource "aws_iam_role_policy" "pipe" {
@@ -143,6 +155,14 @@ resource "aws_pipes_pipe" "stream_to_bus" {
   source   = aws_kinesis_stream.this[0].arn
   target   = aws_cloudwatch_event_bus.this.arn
 
+  log_configuration {
+    level                  = "ERROR"
+    include_execution_data = ["ALL"]
+    cloudwatch_logs_log_destination {
+      log_group_arn = aws_cloudwatch_log_group.pipe.arn
+    }
+  }
+
   source_parameters {
     kinesis_stream_parameters {
       starting_position                  = "LATEST"
@@ -153,11 +173,16 @@ resource "aws_pipes_pipe" "stream_to_bus" {
   }
 
   target_parameters {
-    # The record's JSON envelope becomes the event detail; its "type" the detail-type.
-    input_template = "<$.data>"
+    # The event detail = our envelope, built field by field as a JSON object (a bare "<$.data>"
+    # template produced unquoted, non-JSON text and EventBridge rejected every entry with
+    # BadRequest), plus the Kinesis sequence number for ordering / de-duplication.
+    # The detail-type is fixed; rules and consumers route on detail.type ("joined", ...).
+    input_template = <<-EOT
+      {"id": <$.data.id>, "type": <$.data.type>, "sale_event_id": <$.data.sale_event_id>, "at": <$.data.at>, "data": <$.data.data>, "kinesis_sequence": <$.sequenceNumber>}
+    EOT
     eventbridge_event_bus_parameters {
       source      = "surgegate.sale-events"
-      detail_type = "$.data.type"
+      detail_type = "sale-event"
     }
   }
 
