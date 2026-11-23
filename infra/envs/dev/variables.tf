@@ -35,9 +35,9 @@ variable "restore_snapshot_id" {
 }
 
 variable "enable_cloudfront" {
-  description = "CloudFront distribution in front of the ALB. false until AWS verifies the account (ADR 003)."
+  description = "CloudFront distribution in front of the ALB (ADR 003). Enabled after AWS verified the account (support case 179519256900023, 23 Nov)."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_eks" {

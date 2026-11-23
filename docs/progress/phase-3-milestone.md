@@ -8,8 +8,10 @@
   - Admission at the set rate: **met**.
   - 1,000 join: **977 / 1,000**, the rest throttled by the account's Lambda concurrency limit (10;
     increase requested).
-  - `/book/*` refused without a pass: **met in the booking API. "At the edge" is pending
-    CloudFront verification.**
+  - `/book/*` refused without a pass: **met in the booking API, and at the edge since 23 Nov**
+    (CloudFront approved).
+- **Update 2026-11-23:** CloudFront edge checks done (below). The k6 re-run with 1,000 users is next
+  (Lambda limit is now 1,000), and this file will be updated with its result.
 
 ## Evidence
 
@@ -19,7 +21,9 @@
 | The pre-queue is shuffled | `check_queue.py` on DynamoDB after the run; unit tests; a manual 62-person test | All 977 joined before the start; **the 10 earliest arrivals got positions 267, 307, 214, 41, 304, 425, 385, 218, 511, 334**; positions 1–977 unique without gaps |
 | Admitted at the set rate | Rate 250/min. Valve logs; earlier live test at 100/min | serving went up by 250 per minute up to 977; **all 977 admitted**. 100/min test: 100 → 200 → 300 at 19:17/18/19. Pause: a tick while paused admitted 0 |
 | `/book/*` without a valid pass is refused **in the booking API** | Deployed API, real tokens | no pass → `403 booking pass required`; tampered → forged; other event → refused; another user's pass → refused; valid → 200 |
-| `/book/*` without a valid pass is refused **at the edge** | CloudFront Function `booking-pass` + KeyValueStore + `/book/*` behaviour | **Pending CloudFront verification**: written, plan-checked, behind `enable_cloudfront` |
+| `/book/*` without a valid pass is refused **at the edge** (23 Nov) | `https://d1t9vww2xtyvsz.cloudfront.net/book/<event>/seats`, buyer-1 token | **no pass / garbage / forged / expired → `403`, `X-Cache: FunctionGeneratedResponse from cloudfront`**: answered by the CloudFront Function, never reaching the ALB. Valid pass with the **wrong user** → passes the edge, refused by the API (`403 pass belongs to someone else`, `X-Cache: Error from cloudfront`), which is defence in depth. **Valid pass, right user → `200`, 96 seats** |
+| The shared counter is cached 5 s at the edge (23 Nov) | 8 requests to `/queue/<event>/serving`, about 2 s apart | `Miss`, `Hit (Age 1)`, `Hit (Age 3)`, `Miss`, `Hit (Age 2)`, `Hit (Age 4)`, `Miss`, `Hit (Age 1)`; `Cache-Control: public, max-age=5` |
+| Everything through one origin (23 Nov) | Organiser API, join, position, admit, `/book` all via the CloudFront domain | default → ALB, `/queue/*` → API Gateway, `/book/*` → booking-pass function → ALB |
 
 ## How to demo it
 
@@ -55,8 +59,8 @@ svc/booking-api 18080:80`; `cd web/buyer && npm run dev`.
 
 ## Still to do for a full M3
 
-1. **Lambda quota 10 → 1,000** (requested) → re-run k6 → expect 1,000/1,000 joins.
-2. **CloudFront verification** → `enable_cloudfront = true` → copy `pass-key` into the
-   KeyValueStore → show `/book/*` without a pass refused **at the edge** (`x-cache` from
-   CloudFront, no request in the ALB logs). Also the `/queue/*/serving` 5 s cache hit.
-3. Improvement found by the test: before the sale, poll the shared status instead of `/position`.
+1. **Lambda limit is now 1,000** (since 23 Nov) → re-run k6 → expect 1,000/1,000 joins.
+2. ~~CloudFront verification → edge refusal, 5 s cache~~ **Done 23 Nov.** The first deploy of the
+   function failed at the edge with `SyntaxError: await in arguments not supported in 37`
+   (`X-Cache: FunctionExecutionError`). Fixed, re-tested with `TestFunction` and live.
+3. ~~Before the sale, poll the shared status instead of `/position`~~ **Done** (#37).
