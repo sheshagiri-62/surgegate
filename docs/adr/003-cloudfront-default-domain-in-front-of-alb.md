@@ -80,10 +80,20 @@ Constraints:
   certificate in ap-south-1 on an HTTPS ALB listener and `origin_protocol_policy = "https-only"`,
   or CloudFront **VPC origins** with an internal ALB (no public ALB at all). Payment webhooks and
   checkout must not cross an unencrypted hop.
-- **CloudFront is blocked until the account is verified.** On 20 Nov the first create failed:
-  `AccessDenied: Your account must be verified before you can add new CloudFront resources.`
-  An AWS Support case is needed; until then the edge module's ALB side works but there is no
-  public HTTPS URL.
+  - **Update 2026-11-23: VPC origins chosen and done** (step 1 of 2). The ALB is now **internal**
+    (private subnets, no public address; its DNS name resolves to 10.20.x.x). CloudFront reaches it
+    through `aws_cloudfront_vpc_origin`, a service-managed ENI in our VPC, so the hop runs on AWS's
+    private network, not the internet. The ALB security group still admits only the CloudFront
+    origin-facing prefix list, and the `X-Origin-Verify` header is kept as a second check.
+    - Cost: $0 extra (VPC origins are free; it saves the ALB's public IPv4 charge).
+    - Trade-off: `make up` / `make down` each take about 15 minutes longer, because the VPC origin
+      follows the ALB, which is recreated every session (keeping the ALB permanently would cost
+      about $16/month).
+    - **Still HTTP on that private path. Step 2:** once the Route 53 domain is approved, add an
+      ACM certificate and an HTTPS listener, then switch the VPC origin to `https-only`.
+- ~~CloudFront is blocked until the account is verified.~~ **Resolved 23 Nov** (support case
+  179519256900023). The first create had failed on 20 Nov with `AccessDenied: Your account must be
+  verified before you can add new CloudFront resources.`
 
 ## Alternatives considered
 
