@@ -63,3 +63,9 @@ variable "debug_ingress_cidr" {
   type        = string
   default     = ""
 }
+
+variable "enable_kinesis" {
+  description = "Kinesis stream sale-events + its Pipe (hourly, about $0.0175/h for 1 shard). make down sets false."
+  type        = bool
+  default     = true
+}

@@ -86,3 +86,15 @@ variable "pass_key_version" {
   type        = number
   default     = 1
 }
+
+variable "sale_events_stream" {
+  description = "Kinesis stream name for sale events (empty = do not publish)."
+  type        = string
+  default     = ""
+}
+
+variable "sale_events_arn" {
+  description = "Kinesis stream ARN for the producers' IAM policies."
+  type        = string
+  default     = ""
+}

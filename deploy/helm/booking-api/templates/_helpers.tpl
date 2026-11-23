@@ -18,6 +18,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.database.instanceId | quote }}
 - name: QUEUE_TABLE
   value: {{ .Values.queue.table | quote }}
+- name: SALE_EVENTS_STREAM
+  value: {{ .Values.saleEvents.stream | quote }}
 - name: BOOKING_PASS_REQUIRED
   value: {{ .Values.bookingPass.required | quote }}
 - name: BOOKING_PASS_SECRET_ID

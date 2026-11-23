@@ -62,6 +62,13 @@ data "aws_iam_policy_document" "booking_api" {
     resources = [module.queue.pass_key_secret_arn]
   }
 
+  # Sale events (seat_held, ...) to the Kinesis stream (ADR 002).
+  statement {
+    sid       = "PublishSaleEvents"
+    actions   = ["kinesis:PutRecord", "kinesis:PutRecords"]
+    resources = [module.events.stream_arn]
+  }
+
   # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
   statement {
     sid       = "WaitingRoomControls"

@@ -191,4 +191,18 @@ module "queue" {
   cognito_issuer     = module.identity.issuer
   cognito_client_ids = values(module.identity.client_ids)
   cors_allow_origins = ["http://localhost:3000"] # buyer app in dev (CloudFront later: same origin)
+  sale_events_stream = module.events.stream_name
+  sale_events_arn    = module.events.stream_arn
+}
+
+# ---------------------------------------------------------------------------
+# Sale events (ADR 002): Kinesis "sale-events" (hourly: make up / make down) + EventBridge bus,
+# archive and a log-group rule (persistent, pay per event).
+# ---------------------------------------------------------------------------
+module "events" {
+  source = "../../modules/events"
+
+  name           = local.name
+  stream_enabled = var.enable_kinesis
+  shard_count    = 1
 }

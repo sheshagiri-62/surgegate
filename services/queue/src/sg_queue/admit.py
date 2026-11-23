@@ -20,7 +20,7 @@ import os
 import time
 from datetime import UTC, datetime
 
-from sg_queue import tokens
+from sg_queue import sale_events, tokens
 from sg_queue.common import META, claims, pk, response, table, user_sk, valid_event_id
 
 PASS_SECONDS = 15 * 60
@@ -66,6 +66,10 @@ def handler(event, context):
     if expires <= time.time():
         return response(410, {"detail": "your booking window has ended"})
 
+    if updated["admitted_at"] == now:  # first admission only (asking again is not an event)
+        sale_events.publish(
+            [sale_events.envelope("admitted", event_id, {"sub": sub, "position": token["pos"]})]
+        )
     booking_pass = tokens.sign(
         {"typ": "pass", "ev": event_id, "sub": sub, "iat": admitted, "exp": expires},
         tokens.signing_key(os.environ["PASS_KEY_SECRET"]),

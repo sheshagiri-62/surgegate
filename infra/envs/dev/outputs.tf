@@ -92,3 +92,12 @@ output "queue_table" {
   description = "DynamoDB waiting-room table."
   value       = module.data.queue_table_name
 }
+
+output "sale_events" {
+  description = "Sale-events stream, bus and log group."
+  value = {
+    stream    = module.events.stream_name
+    bus       = module.events.bus_name
+    log_group = module.events.log_group
+  }
+}
