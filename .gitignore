@@ -26,6 +26,8 @@ terraform.rc
 .env.*
 !.env.example
 *.pem
+# Public AWS RDS CA bundle (certificates only, no keys) used by the hold-release Lambda for TLS.
+!services/workers/src/sg_workers/rds-global-bundle.pem
 *.key
 kubeconfig
 *.kubeconfig

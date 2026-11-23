@@ -69,6 +69,13 @@ data "aws_iam_policy_document" "booking_api" {
     resources = [module.events.stream_arn]
   }
 
+  # Start the 10-minute hold timer for every committed hold.
+  statement {
+    sid       = "StartHoldTimer"
+    actions   = ["states:StartExecution"]
+    resources = [module.async.hold_timer_arn]
+  }
+
   # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
   statement {
     sid       = "WaitingRoomControls"

@@ -72,3 +72,7 @@ bookingPass:
 # Sale events (ADR 002): seat_held etc. go to this Kinesis stream (best-effort).
 saleEvents:
   stream: surgegate-dev-sale-events
+
+# 10-minute hold timer (Step Functions); one execution per hold.
+holdTimer:
+  arn: arn:aws:states:ap-south-1:968077439619:stateMachine:surgegate-dev-hold-timer
