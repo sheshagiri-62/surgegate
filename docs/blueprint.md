@@ -117,7 +117,7 @@ The stack reuses the languages you already know (Python, TypeScript) so the 12 w
 | Queue state | Amazon DynamoDB | Millions of small writes with predictable latency; conditional writes and TTL |
 | Cache | Amazon ElastiCache (Redis) | Seat-map cache and per-user rate limits |
 | Files and email | S3 (tickets, seat maps), SES (ticket emails) | Durable storage with lifecycle rules; transactional email |
-| Payments | Razorpay test mode (webhooks) | Indian payment flow without real money |
+| Payments | Razorpay test mode (webhooks); for now a Razorpay-shaped mock provider ([ADR 004](adr/004-mock-payment-provider.md)) | Indian payment flow without real money |
 | Identity | Amazon Cognito | Sign-up, OTP, JWTs with a tenant claim |
 | Edge and security | Route 53, ACM, CloudFront, AWS WAF (rate rules, bot control), KMS, Secrets Manager, GuardDuty, Security Hub | Protection at the edge before traffic reaches the app |
 | Infrastructure as code | Terraform (modules, S3 remote state, dev and prod environments) | Everything rebuilt or destroyed with one command |
