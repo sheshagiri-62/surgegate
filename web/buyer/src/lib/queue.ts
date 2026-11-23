@@ -116,3 +116,12 @@ export function waitText(etaSeconds: number | null): string {
   const minutes = Math.round(etaSeconds / 60);
   return minutes < 60 ? `about ${minutes} minutes` : `about ${Math.round(minutes / 60)} h ${minutes % 60} min`;
 }
+
+/**
+ * Ask for our own position only after the sale has started. Before that, places have no number
+ * (they are shuffled at the start), so polling /position would only add load. Unknown status
+ * (first /serving answer not in yet) also waits.
+ */
+export function mayAskPosition(serving: Serving | null): boolean {
+  return !!serving && serving.status !== "pre-queue" && serving.status !== "shuffling";
+}
