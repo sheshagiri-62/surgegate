@@ -96,7 +96,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 **Day 7 — Wed 25 Nov**
 
-- [ ] 1. Step Functions hold timer: wait 10 minutes, release only if still held by the same hold
+- [x] 1. Step Functions hold timer: wait 10 minutes, release only if still held by the same hold ([task-02-hold-timer](day-07/task-02-hold-timer.md); live: released after the wait, `hold_released` on the bus)
 - [ ] 2. Orders with idempotency keys; Razorpay test-mode checkout in the buyer app
 - [ ] 3. Webhook endpoint: verify signature, put on SQS; order worker confirms exactly once by payment ID
 - [ ] 4. Late-payment rule: re-hold if seats are free, otherwise refund (test mode) and notify
