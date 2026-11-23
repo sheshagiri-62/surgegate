@@ -12,6 +12,7 @@ import {
   joinQueue,
   loadJoin,
   loadPass,
+  mayAskPosition,
   QueueError,
   saveJoin,
   savePass,
@@ -63,7 +64,11 @@ function WaitingRoom() {
     };
   }, [eventId]);
 
-  // Join once (kept per event in this tab), then ask for our number until we have one.
+  // Join once (kept per event in this tab). Ask for our number only once the sale has started:
+  // before the start nobody has one (places are shuffled at the start), and the shared /serving
+  // status (polled above, cacheable) tells us when that happens. The k6 run on Day 6 showed that
+  // asking every 5 s before the start was most of the load.
+  const askPosition = mayAskPosition(serving);
   useEffect(() => {
     if (!eventId || !tokens || position?.position) return;
     let stop = false;
@@ -74,6 +79,7 @@ function WaitingRoom() {
           requestId = (await joinQueue(eventId, tokens.accessToken)).request_id;
           saveJoin(eventId, requestId);
         }
+        if (!askPosition) return; // pre-queue: wait for the shared counter to say "open"
         const p = await getPosition(eventId, tokens.accessToken, requestId);
         if (!stop) setPosition(p);
       } catch (e) {
@@ -90,7 +96,7 @@ function WaitingRoom() {
       clearTimeout(first);
       clearInterval(t);
     };
-  }, [eventId, tokens, position?.position]);
+  }, [eventId, tokens, position?.position, askPosition]);
 
   const v = view(position, serving, now);
 

@@ -1,4 +1,4 @@
-import { view, waitText, type Position, type Serving } from "./queue";
+import { mayAskPosition, view, waitText, type Position, type Serving } from "./queue";
 
 const serving = (over: Partial<Serving> = {}): Serving => ({
   event_id: "e",
@@ -54,5 +54,17 @@ describe("waitText", () => {
     expect(waitText(60)).toBe("less than a minute");
     expect(waitText(240)).toBe("about 4 minutes");
     expect(waitText(3 * 3600 + 600)).toBe("about 3 h 10 min");
+  });
+});
+
+describe("mayAskPosition", () => {
+  it("waits before the sale and during the shuffle", () => {
+    expect(mayAskPosition(null)).toBe(false);
+    expect(mayAskPosition(serving({ status: "pre-queue" }))).toBe(false);
+    expect(mayAskPosition(serving({ status: "shuffling" }))).toBe(false);
+  });
+  it("asks once the sale is open (or paused after opening)", () => {
+    expect(mayAskPosition(serving({ status: "open" }))).toBe(true);
+    expect(mayAskPosition(serving({ status: "paused" }))).toBe(true);
   });
 });

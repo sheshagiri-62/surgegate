@@ -4,9 +4,10 @@
 //
 // Flow per virtual user (like the buyer page):
 //   1. POST /queue/{event}/join                       (once)
-//   2. GET  /queue/{event}/position every 5 s         until a number arrives (pre-queue -> shuffle)
-//   3. GET  /queue/{event}/serving every 10 s         the shared counter (blueprint: 1 poll / 10 s)
-//   4. POST /queue/{event}/admit                      when serving_up_to >= position -> booking pass
+//   2. GET  /queue/{event}/serving every 10 s         until the sale opens (no /position before)
+//   3. GET  /queue/{event}/position every 5 s         until a number arrives (after the shuffle)
+//   4. GET  /queue/{event}/serving every 10 s         the shared counter (blueprint: 1 poll / 10 s)
+//   5. POST /queue/{event}/admit                      when serving_up_to >= position -> booking pass
 //
 // Arrivals spread over ARRIVAL_SECONDS, so the account's Lambda concurrency limit (10) is not
 // the thing being measured. /book is not called: without CloudFront the ALB is not reachable
@@ -71,6 +72,15 @@ export default function () {
   joined.add(ok);
   if (!ok) return;
   const req = j.json('request_id');
+
+  // Before the sale nobody has a number: watch only the shared (cacheable) counter until the
+  // queue opens, then ask for our position. (Day 6 run: polling /position before the start was
+  // most of the load.)
+  while ((Date.now() - start) / 1000 < MAX_WAIT_SECONDS) {
+    const s = withRetry(() => http.get(`${API}/queue/${EVENT}/serving`));
+    if (s.status === 200 && !['pre-queue', 'shuffling'].includes(s.json('status'))) break;
+    sleep(10);
+  }
 
   let pos = null;
   while (!pos && (Date.now() - start) / 1000 < MAX_WAIT_SECONDS) {
