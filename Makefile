@@ -15,6 +15,21 @@ export AWS_PROFILE AWS_REGION
 BASH_PATH := $(shell command -v bash)
 export TF_VAR_token_shell := $(shell cygpath -m '$(BASH_PATH)' 2>/dev/null || echo '$(BASH_PATH)')
 
+# Windows: when MSYS2's GNU make is started from Git Bash (a different MSYS runtime), it gets
+# almost none of the Windows environment (USERPROFILE, TEMP, APPDATA, ... are lost), so the AWS
+# CLI fails ("Could not determine home directory") and Terraform can't download providers.
+# Stop early with the fix. Started from PowerShell or cmd.exe, make gets the full environment.
+ifneq ($(wildcard /c/Windows/System32/cmd.exe),)
+ifeq ($(strip $(USERPROFILE)),)
+$(error make lost the Windows environment (USERPROFILE is empty). From Git Bash run:  cmd //c "make $(MAKECMDGOALS)"  (or run make from PowerShell))
+endif
+endif
+
+# Every recipe that talks to AWS first checks the CLI works, so a broken environment can never
+# look like "nothing found".
+AWS_OK = aws sts get-caller-identity --query Account --output text >/dev/null || \
+	{ echo "ERROR: the AWS CLI does not work here (credentials expired? run: aws login --profile $(AWS_PROFILE))"; exit 1; }
+
 .DEFAULT_GOAL := help
 .PHONY: help init fmt lint test up down load check-env
 
@@ -54,18 +69,27 @@ APPROVE   ?=
 DB_ID     := surgegate-$(ENV)-pg
 KEEP_SNAPSHOTS ?= 2
 
-# Newest available final snapshot of the dev database (empty if none) → restored by make up.
-LATEST_SNAPSHOT = $(shell aws rds describe-db-snapshots --db-instance-identifier $(DB_ID) --snapshot-type manual \
-	--query 'reverse(sort_by(DBSnapshots[?Status==`available`],&SnapshotCreateTime))[0].DBSnapshotIdentifier' \
-	--output text 2>/dev/null | grep -v '^None$$')
+# make up restores the newest available final snapshot of the dev database. The lookup must
+# SUCCEED: if the AWS call fails, make up stops (it never silently creates an empty database).
+# EXPECT_SNAPSHOT=<id> makes it stop unless the newest snapshot is exactly that one.
+EXPECT_SNAPSHOT ?=
+RESTORE_FILE := $(ENV_DIR)/.restore_snapshot
 
 .PHONY: billing-check
 
 up: check-env ## Create ENV: plan, ask "yes" (or APPROVE=yes), apply, kubeconfig, wait for Argo CD apps
+	@$(AWS_OK)
 	terraform -chdir=$(ENV_DIR) init -input=false
-	@echo "Restoring the database from snapshot: $(or $(LATEST_SNAPSHOT),<none - new empty database>)"
+	@snap=$$(aws rds describe-db-snapshots --db-instance-identifier $(DB_ID) --snapshot-type manual \
+		--query 'reverse(sort_by(DBSnapshots[?Status==`available`],&SnapshotCreateTime))[0].DBSnapshotIdentifier' \
+		--output text | tr -d '\r') || { echo "ERROR: could not list DB snapshots; stopping (no empty database)."; exit 1; }; \
+	[ "$$snap" = "None" ] && snap=""; \
+	echo "Restoring the database from snapshot: $${snap:-<none - new empty database>}"; \
+	if [ -n "$(EXPECT_SNAPSHOT)" ] && [ "$$snap" != "$(EXPECT_SNAPSHOT)" ]; then \
+		echo "STOP: expected snapshot $(EXPECT_SNAPSHOT), found '$$snap'. Nothing created."; exit 1; fi; \
+	printf '%s' "$$snap" > $(RESTORE_FILE)
 	terraform -chdir=$(ENV_DIR) plan -input=false $(TF_LOCK) -var=enable_nat_gateway=true -var=enable_eks=true \
-		-var=enable_data=true -var=restore_snapshot_id=$(LATEST_SNAPSHOT) -out=up.tfplan
+		-var=enable_data=true -var=restore_snapshot_id=$$(cat $(RESTORE_FILE)) -out=up.tfplan
 	@if [ "$(APPROVE)" != "yes" ]; then \
 		printf 'Apply this plan? It creates HOURLY-billed resources (NAT, EKS, nodes, ALB, RDS, Redis). Type yes: '; \
 		read ans; [ "$$ans" = "yes" ] || { echo "Not applied."; rm -f $(UP_PLAN); exit 1; }; fi
@@ -99,7 +123,8 @@ down: check-env ## Remove everything hourly in ENV (EKS, nodes, ALB, NAT, EIP, R
 	@$(MAKE) --no-print-directory billing-check ENV=$(ENV)
 
 prune-snapshots: check-env ## Keep only the newest KEEP_SNAPSHOTS (default 2) final snapshots of the dev DB
-	@aws rds describe-db-snapshots --db-instance-identifier $(DB_ID) --snapshot-type manual \
+	@$(AWS_OK)
+	@set -e; aws rds describe-db-snapshots --db-instance-identifier $(DB_ID) --snapshot-type manual \
 		--query 'reverse(sort_by(DBSnapshots[?Status==`available`],&SnapshotCreateTime))[].DBSnapshotIdentifier' \
 		--output text | tr '\t' '\n' | tail -n +$$(( $(KEEP_SNAPSHOTS) + 1 )) | while read s; do \
 		[ -n "$$s" ] && { echo "Deleting old DB snapshot $$s"; aws rds delete-db-snapshot --db-snapshot-identifier "$$s" >/dev/null; }; done; \
@@ -107,8 +132,9 @@ prune-snapshots: check-env ## Keep only the newest KEEP_SNAPSHOTS (default 2) fi
 		--query 'DBSnapshots[].DBSnapshotIdentifier' --output text)"
 
 billing-check: check-env ## List everything in ENV that bills by the hour (all lists empty = nothing running)
+	@$(AWS_OK)
 	@echo "Billing by the hour in $(ENV) (every list should be empty after make down):"
-	@VPC=$$(aws ec2 describe-vpcs --filters Name=tag:Env,Values=$(ENV) Name=tag:Component,Values=network \
+	@set -e; VPC=$$(aws ec2 describe-vpcs --filters Name=tag:Env,Values=$(ENV) Name=tag:Component,Values=network \
 		--query 'Vpcs[0].VpcId' --output text); \
 	EKS=$$(aws eks list-clusters --query 'clusters[?@==`$(CLUSTER)`]' --output text); \
 	EC2=$$(aws ec2 describe-instances --filters Name=vpc-id,Values=$$VPC \
