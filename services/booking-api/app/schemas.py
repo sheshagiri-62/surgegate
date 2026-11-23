@@ -102,3 +102,28 @@ class QueueState(BaseModel):
     in_line: int
     admitted: int
     waiting: int
+
+
+class OrderCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    hold_id: uuid.UUID
+    # Where the checkout sends the buyer back (?id=<order> is added). Allow-listed origins only.
+    return_url: str | None = Field(default=None, max_length=300)
+
+
+class OrderOut(BaseModel):
+    order_id: uuid.UUID
+    status: str
+    event_id: uuid.UUID
+    hold_id: uuid.UUID
+    hold_expires_at: datetime
+    seats: list[str]
+    amount_paise: int
+    currency: str
+    provider: str
+    provider_order_id: str | None
+    # How the browser pays (only while the order is pending): see app/payments.py.
+    checkout: dict | None
+    created_at: datetime
+    paid_at: datetime | None

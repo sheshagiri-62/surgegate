@@ -1,0 +1,16 @@
+{{- if .Values.targetGroupBinding.enabled }}
+# Registers the pod IP in the ALB target group Terraform owns. The ALB forwards ONLY
+# /mockpay/checkout/* here (with the origin-verify header); everything else is cluster-only.
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "mock-pay.labels" . | nindent 4 }}
+spec:
+  targetGroupName: {{ .Values.targetGroupBinding.targetGroupName }}
+  targetType: ip
+  serviceRef:
+    name: {{ .Release.Name }}
+    port: {{ .Values.service.port }}
+{{- end }}

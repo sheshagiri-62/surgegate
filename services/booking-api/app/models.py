@@ -4,7 +4,8 @@ PostgreSQL is the single source of truth for seats. Two database rules make over
 impossible even if application code has a bug:
 
 1. A hold is ONE conditional UPDATE on seats ... WHERE status = 'available' (see holds.py).
-2. order_items.seat_id is UNIQUE: a seat can appear in at most one order, ever.
+2. A seat can be SOLD in at most one order item: order_items has a partial UNIQUE index on
+   seat_id WHERE sold. Unsold items (a failed or expired order) don't block re-selling.
 
 Money is stored as integer paise (1 INR = 100 paise) so there is no float rounding.
 Tenant isolation: every organiser-owned row reaches a tenant through events.tenant_id.
@@ -17,6 +18,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -27,8 +29,9 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # Stable constraint names, so Alembic migrations can refer to (and drop) them by name.
@@ -80,6 +83,12 @@ class HoldStatus(enum.StrEnum):
 class OrderStatus(enum.StrEnum):
     PENDING = "pending"
     PAID = "paid"
+    FAILED = "failed"
+    REFUNDED = "refunded"
+
+
+class PaymentStatus(enum.StrEnum):
+    CAPTURED = "captured"
     FAILED = "failed"
     REFUNDED = "refunded"
 
@@ -185,9 +194,18 @@ class Hold(Base):
 class Order(Base):
     __tablename__ = "orders"
     __table_args__ = (
-        UniqueConstraint("idempotency_key"),  # a double click creates one order
+        # A double click or a retry with the same key creates one order (keys are per buyer).
+        UniqueConstraint("buyer_id", "idempotency_key"),
+        UniqueConstraint("provider_order_id"),  # the webhook finds the order by it
         CheckConstraint("amount_paise >= 0", name="amount_not_negative"),
         Index("ix_orders_buyer_id", "buyer_id"),
+        # At most one live (pending or paid) order per hold; a failed one may be retried.
+        Index(
+            "uq_orders_live_hold",
+            "hold_id",
+            unique=True,
+            postgresql_where=text("status IN ('pending', 'paid')"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -204,7 +222,14 @@ class Order(Base):
     )
     amount_paise: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="INR")
+    provider: Mapped[str] = mapped_column(String(20), nullable=False, server_default="mock")
+    # Set once the provider has created its order; NULL means "retry the provider call".
+    provider_order_id: Mapped[str | None] = mapped_column(String(64))
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     items: Mapped[list[OrderItem]] = relationship(back_populates="order")
 
@@ -212,8 +237,10 @@ class Order(Base):
 class OrderItem(Base):
     __tablename__ = "order_items"
     __table_args__ = (
-        # Second safety net (blueprint): one seat can never be in two orders.
-        UniqueConstraint("seat_id"),
+        # Second safety net (blueprint): a seat can be SOLD in only one order item, ever.
+        # Items are written when the order is created (a snapshot of seats and prices, which
+        # the late-payment rule needs); only the payment worker sets sold = true.
+        Index("uq_order_items_sold_seat", "seat_id", unique=True, postgresql_where=text("sold")),
         CheckConstraint("price_paise >= 0", name="price_not_negative"),
         Index("ix_order_items_order_id", "order_id"),
     )
@@ -226,5 +253,32 @@ class OrderItem(Base):
         ForeignKey("seats.id", ondelete="RESTRICT"), nullable=False
     )
     price_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    sold: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
 
     order: Mapped[Order] = relationship(back_populates="items")
+
+
+class Payment(Base):
+    """One provider payment (from a webhook). provider_payment_id UNIQUE = exactly once."""
+
+    __tablename__ = "payments"
+    __table_args__ = (
+        UniqueConstraint("provider_payment_id"),
+        CheckConstraint("amount_paise >= 0", name="amount_not_negative"),
+        Index("ix_payments_order_id", "order_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("orders.id", ondelete="RESTRICT"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(20), nullable=False)
+    provider_payment_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider_event_id: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[PaymentStatus] = mapped_column(
+        _pg_enum(PaymentStatus, "payment_status"), nullable=False
+    )
+    amount_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="INR")
+    raw_event: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    received_at: Mapped[datetime] = _created_at()

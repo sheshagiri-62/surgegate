@@ -76,6 +76,13 @@ data "aws_iam_policy_document" "booking_api" {
     resources = [module.async.hold_timer_arn]
   }
 
+  # Payment provider keys (ADR 004): create provider orders, verify webhook signatures.
+  statement {
+    sid       = "ReadPaymentKeys"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [module.data.razorpay_secret_arn]
+  }
+
   # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
   statement {
     sid       = "WaitingRoomControls"

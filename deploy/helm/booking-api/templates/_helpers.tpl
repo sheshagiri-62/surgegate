@@ -52,3 +52,18 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: CORS_ALLOW_ORIGINS
   value: {{ join "," .Values.cors.allowOrigins | quote }}
 {{- end -}}
+
+
+{{/* Payments (ADR 004): provider, its keys in Secrets Manager, where buyers may be sent back. */}}
+{{- define "booking-api.paymentsEnv" -}}
+- name: PAYMENT_PROVIDER
+  value: {{ .Values.payments.provider | quote }}
+- name: PAYMENT_SECRET_ID
+  value: {{ .Values.payments.secretId | quote }}
+- name: MOCKPAY_API_URL
+  value: {{ .Values.payments.mock.apiUrl | quote }}
+- name: MOCKPAY_CHECKOUT_BASE
+  value: {{ .Values.payments.mock.checkoutBase | quote }}
+- name: ORDER_RETURN_ORIGINS
+  value: {{ join "," .Values.payments.returnOrigins | quote }}
+{{- end -}}

@@ -1,6 +1,6 @@
 """SurgeGate booking API.
 
-Routes are added task by task (Phase 2): auth (/me), organiser endpoints, seat map, holds.
+Routes are added task by task: auth (/me), organiser endpoints, seat map, holds, orders.
 """
 
 import os
@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import AnyUser
-from app.routes import buyer, organiser
+from app.routes import buyer, orders, organiser
 
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 
@@ -22,12 +22,14 @@ if _origins:
         CORSMiddleware,
         allow_origins=_origins,
         allow_methods=["GET", "POST", "PUT"],
-        allow_headers=["Authorization", "Content-Type", "X-Booking-Pass"],
+        allow_headers=["Authorization", "Content-Type", "X-Booking-Pass", "Idempotency-Key"],
         allow_credentials=False,  # bearer tokens, no cookies
         max_age=600,
     )
 app.include_router(organiser.router)
 app.include_router(buyer.router)
+app.include_router(orders.book)
+app.include_router(orders.mine)
 
 
 @app.get("/healthz")

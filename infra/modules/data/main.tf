@@ -134,13 +134,44 @@ resource "aws_secretsmanager_secret_version" "redis_auth" {
   secret_string = random_password.redis_auth.result
 }
 
-# Razorpay test keys: only the container is created here; the value is set by hand later
-# (aws secretsmanager put-secret-value …), never in Git or Terraform.
+# Payment keys (ADR 004): JSON {key_id, key_secret, webhook_secret}. Terraform generates them
+# for the Razorpay-shaped mock; the booking API and mock-pay read them with their pod roles.
+# ignore_changes: real Razorpay TEST keys can later replace the value by hand
+# (aws secretsmanager put-secret-value) without Terraform writing it back.
 resource "aws_secretsmanager_secret" "razorpay" {
   name                    = "${var.secrets_prefix}/data/razorpay"
-  description             = "Razorpay TEST key id and secret (JSON). Value set manually; not managed by Terraform."
+  description             = "Payment keys JSON (key_id, key_secret, webhook_secret). Generated for the mock provider (ADR 004); may be replaced by hand with Razorpay test keys."
   recovery_window_in_days = 7
   tags                    = local.tags
+}
+
+resource "random_string" "payment_key_id" {
+  length  = 14
+  special = false
+}
+
+resource "random_password" "payment_key_secret" {
+  length  = 32
+  special = false
+}
+
+resource "random_password" "payment_webhook_secret" {
+  length  = 48
+  special = false
+}
+
+resource "aws_secretsmanager_secret_version" "razorpay" {
+  secret_id = aws_secretsmanager_secret.razorpay.id
+  secret_string = jsonencode({
+    provider       = "mock"
+    key_id         = "rzp_test_${random_string.payment_key_id.result}"
+    key_secret     = random_password.payment_key_secret.result
+    webhook_secret = random_password.payment_webhook_secret.result
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }
 
 # --- Network plumbing ------------------------------------------------------

@@ -170,6 +170,54 @@ resource "aws_lb_listener_rule" "from_cloudfront" {
   tags = local.tags
 }
 
+# More services on the same ALB (e.g. mock-pay's public checkout page, ADR 004): only the
+# listed paths, and only with the origin-verify header (i.e. through our CloudFront).
+resource "aws_lb_target_group" "extra" {
+  for_each             = local.alb == 1 ? var.extra_routes : {}
+  name                 = "${var.name}-${each.key}"
+  port                 = var.target_port
+  protocol             = "HTTP"
+  target_type          = "ip"
+  vpc_id               = var.vpc_id
+  deregistration_delay = 10
+
+  health_check {
+    path                = each.value.health_check_path
+    matcher             = "200"
+    interval            = 10
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+  }
+
+  tags = local.tags
+}
+
+resource "aws_lb_listener_rule" "extra" {
+  for_each     = aws_lb_target_group.extra
+  listener_arn = aws_lb_listener.http[0].arn
+  priority     = var.extra_routes[each.key].priority
+
+  condition {
+    http_header {
+      http_header_name = var.origin_verify_header_name
+      values           = [var.origin_verify_secret]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = var.extra_routes[each.key].path_patterns
+    }
+  }
+
+  action {
+    type             = "forward"
+    target_group_arn = each.value.arn
+  }
+
+  tags = local.tags
+}
+
 # ---------------------------------------------------------------------------
 # Optional own domain: Route 53 zone + ACM certificate (us-east-1) + alias records
 # ---------------------------------------------------------------------------
