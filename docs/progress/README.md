@@ -34,3 +34,5 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-22 | 6 | Task 3 — Buyer waiting-room page (countdown, position, wait, auto-redirect) | [task-03-waiting-room-page](day-06/task-03-waiting-room-page.md) |
 | 2026-11-22 | 6 | Task 4 — k6: 1,000 users; 977 joined + admitted (Lambda concurrency 10) | [task-04-k6](day-06/task-04-k6.md) |
 | 2026-11-22 | — | M3 partly met — Phase 3 milestone | [phase-3-milestone](phase-3-milestone.md) |
+| 2026-11-23 | 7 | Task 0 — Carry-overs: make on Windows, snapshot test, CloudFront (M1 met), VPC origins, k6 1,000/1,000 (M3 met) | [task-00-carry-overs](day-07/task-00-carry-overs.md) |
+| 2026-11-24 | 7 | Task 1 — Sale events: Kinesis + EventBridge (Pipe), producers joined/admitted/seat_held | [task-01-sale-events](day-07/task-01-sale-events.md) |

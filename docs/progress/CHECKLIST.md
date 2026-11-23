@@ -104,7 +104,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 **Day 8 — Thu 26 Nov**
 
 - [ ] 1. Ticket worker: PDF + QR code to S3, email through SES (verified sandbox addresses)
-- [ ] 2. `events` module: EventBridge bus + Kinesis stream `sale-events`; producers in the queue Lambdas and the booking API
+- [x] 2. `events` module: EventBridge bus + Kinesis stream `sale-events`; producers in the queue Lambdas and the booking API — **done early on Day 7** (Pipe stream → bus; consumers still Day 8)
 - [ ] 3. Consumers: live-dashboard (WebSocket push), analytics (S3 + Athena table), audit
 - [ ] 4. Organiser SSR dashboard on EKS: live numbers, pause/resume, admission rate, attendee export; gate check-in endpoint
 
