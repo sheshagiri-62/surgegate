@@ -53,7 +53,7 @@ data "aws_iam_policy_document" "plan_state_lock" {
 
 # Terraform refreshes aws_secretsmanager_secret_version with GetSecretValue. Limited to the
 # Terraform-generated secrets (edge origin header, Redis AUTH, dev test-user passwords, the mock
-# payment keys of ADR 004); the plan role can already read those values from the state file.
+# payment keys of ADR 004, the ticket QR key); the plan role can already read those values from the state file.
 # The RDS master secret is NOT included.
 data "aws_iam_policy_document" "plan_read_edge_secrets" {
   statement {
@@ -64,6 +64,7 @@ data "aws_iam_policy_document" "plan_read_edge_secrets" {
       "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/*/data/redis-auth-*",
       "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/dev/test-users-*",
       "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/*/data/razorpay-*",
+      "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/*/data/ticket-key-*",
     ]
   }
 }

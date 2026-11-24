@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models import Base
 
-TABLES = {"tenants", "events", "seats", "holds", "orders", "order_items", "payments"}
+TABLES = {"tenants", "events", "seats", "holds", "orders", "order_items", "payments", "tickets"}
 
 
 def test_metadata_has_the_booking_tables():

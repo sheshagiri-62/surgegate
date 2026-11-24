@@ -106,3 +106,20 @@ export function createOrder(
 export function getOrder(orderId: string, token: string): Promise<Order> {
   return request<Order>(`/orders/${orderId}`, token);
 }
+
+// --- my tickets (Day 8 Task 1) ---------------------------------------------------------------
+
+export interface MyTicketsOrder {
+  order_id: string;
+  event: { id: string; name: string; venue: string; starts_at: string };
+  paid_at: string | null;
+  emailed: boolean;
+  pdf_url: string | null; // presigned S3 link, valid for link_expires_in seconds
+  tickets: { ticket_id: string; seat: string; used_at: string | null }[];
+}
+
+export function getMyTickets(
+  token: string,
+): Promise<{ orders: MyTicketsOrder[]; link_expires_in: number }> {
+  return request(`/me/tickets`, token);
+}

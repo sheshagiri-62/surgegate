@@ -27,3 +27,13 @@ output "alerts_topic_arn" {
   description = "SNS topic for alarms."
   value       = aws_sns_topic.alerts.arn
 }
+
+output "tickets_queue_url" {
+  description = "Ticket jobs (order_paid via EventBridge, and the sweep)."
+  value       = aws_sqs_queue.tickets.url
+}
+
+output "ticket_key_secret_arn" {
+  description = "HMAC key for ticket QR tokens (the gate check-in verifies them)."
+  value       = aws_secretsmanager_secret.ticket_key.arn
+}

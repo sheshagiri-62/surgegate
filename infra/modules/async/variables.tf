@@ -74,3 +74,59 @@ variable "alert_email" {
   default     = ""
   sensitive   = true
 }
+
+variable "secrets_prefix" {
+  description = "Secrets Manager / SSM prefix, e.g. surgegate/dev."
+  type        = string
+}
+
+variable "tickets_bucket_name" {
+  description = "S3 bucket for ticket PDFs (SSE-KMS with kms_key_arn)."
+  type        = string
+}
+
+variable "tickets_bucket_arn" {
+  description = "ARN of the tickets bucket."
+  type        = string
+}
+
+variable "event_bus_name" {
+  description = "Sale-events EventBridge bus (order_paid rule)."
+  type        = string
+}
+
+variable "cognito_user_pool_id" {
+  description = "User pool (buyer email lookup outside the SES sandbox)."
+  type        = string
+}
+
+variable "cognito_user_pool_arn" {
+  description = "User pool ARN."
+  type        = string
+}
+
+variable "ses_identity_enabled" {
+  description = "Create the SES email identity for ses_sender (the address itself is not in Git)."
+  type        = bool
+  default     = false
+}
+
+variable "ses_sender" {
+  description = "Verified SES sender address. Only in an uncommitted *.auto.tfvars / TF_VAR."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ses_sandbox_recipient" {
+  description = "SES sandbox: every ticket email goes to this verified address. Uncommitted."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "sweep_enabled" {
+  description = "Run the 5-minute ticket sweep (only while the database exists)."
+  type        = bool
+  default     = false
+}
