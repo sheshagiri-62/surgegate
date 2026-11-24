@@ -13,7 +13,7 @@ variable "region" {
 variable "services" {
   description = "Services that get an ECR repository (<project>/<service>)."
   type        = list(string)
-  default     = ["booking-api", "mock-pay"]
+  default     = ["booking-api", "mock-pay", "organiser"]
 }
 
 variable "keep_images" {

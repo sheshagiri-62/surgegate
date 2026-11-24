@@ -74,4 +74,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.live.keySecretId | quote }}
 - name: LIVE_WS_URL
   value: {{ .Values.live.wsUrl | quote }}
+- name: TICKET_KEY_SECRET_ID
+  value: {{ .Values.tickets.keySecretId | quote }}
 {{- end -}}

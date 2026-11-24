@@ -100,6 +100,7 @@ def api(migrated_engine, monkeypatch, queue_table):
     monkeypatch.setattr(auth, "_jwks_client", lambda url: FakeJwks())
     # Seat-logic tests run without the waiting room; test_booking_pass.py turns the check on.
     monkeypatch.setenv("BOOKING_PASS_REQUIRED", "false")
+    monkeypatch.setenv("TICKET_KEY_JSON", '{"kid": "t-test", "key": "' + "k" * 40 + '"}')  # gate
     monkeypatch.setenv(
         "LIVE_KEY_JSON", '{"kid": "l-test", "key": "' + "t" * 40 + '"}'
     )  # live token

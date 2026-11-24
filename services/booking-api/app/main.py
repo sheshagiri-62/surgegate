@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import AnyUser
-from app.routes import buyer, orders, organiser, tickets, webhooks
+from app.routes import buyer, gate, orders, organiser, tickets, webhooks  # noqa: F401 (gate adds /org routes)
 
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 

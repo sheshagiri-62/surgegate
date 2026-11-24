@@ -1,0 +1,167 @@
+# build-deploy-organiser: on every push to main that changes web/organiser (Day 8 Task 4):
+#   lint/typecheck/build -> image -> smoke test (non-root, read-only) -> Trivy (fail on CRITICAL)
+#   -> push to ECR (OIDC) -> commit the new tag to deploy/helm/organiser/values.yaml -> Argo CD.
+name: build-deploy-organiser
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/organiser/**"
+      - ".github/workflows/build-deploy-organiser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-deploy-organiser
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: surgegate/organiser
+  SERVICE_DIR: web/organiser
+  VALUES_FILE: deploy/helm/organiser/values.yaml
+
+jobs:
+  test:
+    name: Test (lint + typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.SERVICE_DIR }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: ${{ env.SERVICE_DIR }}/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+
+  build-push:
+    name: Build, scan, push
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC → surgegate-gha-ecr-push
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: meta
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC, ECR push role)
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          role-session-name: build-deploy-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@7290e214a610b32bc0eef81748948b6d466a8783 # v2.2.0
+
+      # Tags are IMMUTABLE: if this commit's image is already in ECR (a re-run), skip build/push.
+      - id: exists
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$TAG" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"; echo "Image $TAG already in ECR; skipping build and push."
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.exists.outputs.found != 'true'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build image (load locally, not pushed yet)
+        if: steps.exists.outputs.found != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ env.SERVICE_DIR }}
+          platforms: linux/amd64
+          build-args: APP_VERSION=${{ steps.meta.outputs.tag }}
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+          load: true
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Starts the image as the cluster does (non-root, read-only root, tmpfs for .next/cache)
+      # and checks the health route answers.
+      - name: Smoke-test the image (non-root, read-only)
+        if: steps.exists.outputs.found != 'true'
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+        run: |
+          docker run -d --name org --read-only --user 1000 --tmpfs /app/.next/cache -p 8000:8000 "$IMAGE"
+          for i in $(seq 1 30); do curl -fsS http://localhost:8000/organiser/api/healthz && break; sleep 1; done
+          curl -fsS http://localhost:8000/organiser/api/healthz
+          docker rm -f org
+
+      - name: Scan image with Trivy (fail on CRITICAL)
+        if: steps.exists.outputs.found != 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - name: Push to ECR
+        if: steps.exists.outputs.found != 'true'
+        run: docker push "${{ steps.ecr.outputs.registry }}/${ECR_REPOSITORY}:${{ steps.meta.outputs.tag }}"
+
+      # Basic scan-on-push creates the scan record a few seconds after the push, and
+      # `aws ecr wait image-scan-complete` fails at once on ScanNotFoundException, so poll instead.
+      - name: ECR scan-on-push result
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          for i in $(seq 1 36); do
+            status=$(aws ecr describe-image-scan-findings --repository-name "$ECR_REPOSITORY" \
+              --image-id imageTag="$TAG" --query 'imageScanStatus.status' --output text 2>/dev/null || echo PENDING)
+            echo "attempt $i: scan status $status"
+            [ "$status" = "COMPLETE" ] && break
+            [ "$status" = "FAILED" ] && { echo "::warning::ECR scan failed"; exit 0; }
+            sleep 5
+          done
+          aws ecr describe-image-scan-findings --repository-name "$ECR_REPOSITORY" --image-id imageTag="$TAG" \
+            --query 'imageScanFindings.findingSeverityCounts' --output table
+
+  bump-tag:
+    name: Bump Helm image tag (deploy key)
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      # The deploy key is the only actor allowed to bypass the main ruleset, and this job only
+      # ever changes image.tag in one values file.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Commit and push the new tag
+        env:
+          TAG: ${{ needs.build-push.outputs.tag }}
+        run: |
+          sed -i -E "s/^(  tag: ).*/\1\"${TAG}\" # set by build-deploy/" "$VALUES_FILE"
+          git diff --stat
+          git diff --quiet && { echo "Tag already ${TAG}; nothing to commit."; exit 0; }
+          git config user.name  "surgegate-build-deploy"
+          git config user.email "build-deploy@users.noreply.github.com"
+          git commit -am "ci: deploy organiser ${TAG}"
+          for i in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            git pull --rebase origin main
+          done
+          exit 1

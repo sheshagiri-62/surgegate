@@ -1,0 +1,31 @@
+# organiser chart values (dev). image.tag is changed ONLY by build-deploy-organiser.yml.
+image:
+  repository: 968077439619.dkr.ecr.ap-south-1.amazonaws.com/surgegate/organiser
+  tag: "not-built-yet" # set by build-deploy-organiser
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+containerPort: 8000
+
+service:
+  port: 80
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 96Mi
+  limits:
+    memory: 256Mi
+
+# CloudFront -> ALB rule /organiser* -> this target group (infra/envs/dev extra_routes).
+targetGroupBinding:
+  enabled: true
+  targetGroupName: surgegate-dev-organiser
+
+# Server-side calls to the booking API stay inside the cluster.
+bookingApiUrl: http://booking-api.booking.svc.cluster.local
+
+# Cognito organiser-web app client (public client, no secret; IDs are public by design).
+cognito:
+  region: ap-south-1
+  clientId: 4r1b379rs37m8mq284e35esfha

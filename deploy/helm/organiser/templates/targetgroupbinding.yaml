@@ -1,0 +1,16 @@
+{{- if .Values.targetGroupBinding.enabled }}
+# Registers the pod IP in the ALB target group Terraform owns (rule: /organiser* + the
+# origin-verify header, i.e. only through our CloudFront).
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "organiser.labels" . | nindent 4 }}
+spec:
+  targetGroupName: {{ .Values.targetGroupBinding.targetGroupName }}
+  targetType: ip
+  serviceRef:
+    name: {{ .Release.Name }}
+    port: {{ .Values.service.port }}
+{{- end }}
