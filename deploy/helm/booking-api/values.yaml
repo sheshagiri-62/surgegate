@@ -107,6 +107,7 @@ orderWorker:
 # "My tickets": presigned 5-minute links to the ticket PDFs (Day 8 Task 1).
 tickets:
   bucket: surgegate-dev-tickets-968077439619
+  keySecretId: surgegate/dev/data/ticket-key # gate check-in verifies the QR tokens
 
 # Organiser live dashboard (Day 8 Task 3): the booking API signs 60-second WebSocket tokens.
 live:

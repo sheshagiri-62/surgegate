@@ -32,6 +32,9 @@ RECIPES = {
     },
     ("GET", "/org/events/{event_id}/queue"): {"prepare": [OPEN_QUEUE]},
     ("POST", "/org/events/{event_id}/live-token"): {},
+    # Another tenant: 404 before the token is even read; the owner gets the token's own 400.
+    ("POST", "/org/events/{event_id}/check-in"): {"json": {"token": "x" * 20}, "owner_status": 400},
+    ("GET", "/org/events/{event_id}/attendees.csv"): {},
     ("PUT", "/org/events/{event_id}/seats"): {
         "content": b"section,row,number,zone,price_inr\nX,1,1,gold,1\n",
         "headers": {"Content-Type": "text/csv"},
@@ -121,7 +124,10 @@ def test_other_tenant_gets_404_and_changes_nothing(api, migrated_engine, queue_t
         json=recipe.get("json"),
         headers=org_a | recipe.get("headers", {}),
     )
-    assert owner.status_code < 300, f"recipe for {method} {path} is wrong: {owner.text}"
+    if "owner_status" in recipe:  # the owner reaches the route's own validation (e.g. a token)
+        assert owner.status_code == recipe["owner_status"], f"{method} {path}: {owner.text}"
+    else:
+        assert owner.status_code < 300, f"recipe for {method} {path} is wrong: {owner.text}"
 
 
 def test_lists_never_include_other_tenants_events(api):

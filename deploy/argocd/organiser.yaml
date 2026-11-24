@@ -1,0 +1,27 @@
+# organiser dashboard (Next.js SSR, Day 8 Task 4).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: organiser
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io # deleting the app deletes its resources
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sheshagiri-62/surgegate.git
+    targetRevision: main
+    path: deploy/helm/organiser
+    helm:
+      releaseName: organiser
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: organiser
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

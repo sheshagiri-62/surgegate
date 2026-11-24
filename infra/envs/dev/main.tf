@@ -144,6 +144,12 @@ module "edge" {
   # mock-pay (ADR 004): ONLY the public checkout page; /v1/* and /mockpay/test/* stay in-cluster.
   extra_routes = {
     "mock-pay" = { path_patterns = ["/mockpay/checkout/*"], priority = 5 }
+    # Organiser dashboard (Next.js SSR, Day 8 Task 4)
+    "organiser" = {
+      path_patterns     = ["/organiser", "/organiser/*"]
+      priority          = 6
+      health_check_path = "/organiser/api/healthz"
+    }
   }
 }
 
