@@ -126,6 +126,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [ ] 2. Argo Rollouts canary for the booking API with automatic rollback on error rate
 - [ ] 3. Security: GuardDuty, Security Hub, CloudTrail; ECR scan and Trivy gates; secrets rotation check
 - [ ] 4. k6 runs at 10,000 then 50,000 virtual users; record join success, booking p95, oversold seats, cost
+  - **Kinesis at 50k users (note from Day 8):** one provisioned shard takes 1,000 records/s (1 MB/s) for writes, so it will throttle (`ProvisionedThroughputExceededException`). For the demo environment, use **on-demand** mode or enough shards (`shard_count` in `infra/envs/demo`), and producers must handle throttling: retry with backoff in the background and never block or fail the request path (today's producers are best-effort and log on failure).
 - [ ] 5. Base image upgrade for booking-api (clear the 3 HIGH ECR findings) and a build-deploy gate that fails on HIGH (added 20 Nov)
 
 - [ ] **M5:** the 50,000-user test report shows the SLOs met with zero oversold seats, and a deliberately broken release rolls back on its own

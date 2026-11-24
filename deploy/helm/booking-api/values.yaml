@@ -111,4 +111,4 @@ tickets:
 # Organiser live dashboard (Day 8 Task 3): the booking API signs 60-second WebSocket tokens.
 live:
   keySecretId: surgegate/dev/events/live-key
-  wsUrl: "" # terraform output live_ws_url (set after the apply)
+  wsUrl: wss://co9vraz26k.execute-api.ap-south-1.amazonaws.com/live # terraform output live_ws_url
