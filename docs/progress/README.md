@@ -38,3 +38,4 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-24 | 7 | Task 1 — Sale events: Kinesis + EventBridge (Pipe), producers joined/admitted/seat_held | [task-01-sale-events](day-07/task-01-sale-events.md) |
 | 2026-11-24 | 7 | Task 2 — Step Functions hold timer + release worker (live: seat released after the wait, `hold_released` on the bus) | [task-02-hold-timer](day-07/task-02-hold-timer.md) |
 | 2026-11-24 | 7 | Task 3 — Orders with idempotency keys + checkout via the Razorpay-shaped mock (ADR 004); live through CloudFront | [task-03-orders-checkout](day-07/task-03-orders-checkout.md) |
+| 2026-11-24 | 7 | Task 4 — Webhook → SQS → order worker (exactly once) + late-payment rule; DLQ alarm; live via CloudFront | [task-04-payments-webhook](day-07/task-04-payments-webhook.md) |
