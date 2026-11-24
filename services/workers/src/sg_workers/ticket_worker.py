@@ -4,7 +4,9 @@ Triggers (one Lambda):
   * SQS `tickets` queue, fed by an EventBridge rule on detail.type = "order_paid" (the sale-
     events bus). Batch with ReportBatchItemFailures.
   * {"sweep": true} every 5 minutes (EventBridge Scheduler): paid orders older than 2 minutes
-    with no ticket email are queued again. A safety net: order_paid is published best-effort.
+    that NO run has ever claimed are queued. A safety net for a lost order_paid (published
+    best-effort). Claimed-but-unsent orders are NOT re-queued: their job is still retrying on
+    SQS (and ends in the DLQ + alarm if it keeps failing); re-queuing them would pile up copies.
 
 Idempotent per order, so a replay or duplicate never sends a second email:
   1. lock the order; not paid -> skip (ack); email already sent -> ack
@@ -299,7 +301,8 @@ def sweep() -> dict:
     try:
         rows = conn.run(
             "SELECT id::text, event_id::text FROM orders WHERE status = 'paid' "
-            "AND ticket_email_sent_at IS NULL AND paid_at < now() - make_interval(secs => :age) "
+            "AND ticket_email_sent_at IS NULL AND ticket_email_claimed_at IS NULL "
+            "AND paid_at < now() - make_interval(secs => :age) "
             "ORDER BY paid_at LIMIT :n",
             age=SWEEP_AFTER_SECONDS,
             n=SWEEP_LIMIT,
