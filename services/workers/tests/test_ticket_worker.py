@@ -246,3 +246,19 @@ def test_sweep_queues_paid_orders_without_an_email(aws):
     queued = {q["detail"]["data"]["order_id"] for q in aws["queued"]}
     assert stale in queued and fresh not in queued and done not in queued
     assert ticket_worker.order_id_of(aws["queued"][0]) in queued  # same shape as EventBridge
+
+
+def test_sweep_does_not_requeue_an_order_whose_job_is_still_retrying(aws, monkeypatch):
+    """Found live (SES identity not yet verified): re-queuing claimed-but-unsent orders every
+    5 minutes piled up duplicate jobs. Only never-claimed orders (a lost order_paid) are swept."""
+    o = paid_order(paid_ago=timedelta(minutes=10))
+
+    def ses_down(raw, sender, to):
+        raise RuntimeError("MessageRejected: Email address is not verified")
+
+    monkeypatch.setattr(ticket_worker, "send_email", ses_down)
+    out = ticket_worker.handler({"Records": [message(o, "first")]}, None)
+    assert out == {"batchItemFailures": [{"itemIdentifier": "first"}]}  # SQS retries this one
+    ticket_worker.handler({"sweep": True}, None)
+    ticket_worker.handler({"sweep": True}, None)
+    assert o not in {q["detail"]["data"]["order_id"] for q in aws["queued"]}
