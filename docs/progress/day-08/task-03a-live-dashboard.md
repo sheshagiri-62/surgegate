@@ -2,8 +2,10 @@
 
 - **Date:** 2026-11-24
 - **Phase / milestone:** Phase 4 → M4 ("the organiser watches it all update live")
-- **Status:** Done, verified live. **The < 2 s target was not met:** about 2.5–3.6 s measured
-  from the click, of which about 1.3 s is Kinesis polling (see §5).
+- **Status:** Done, verified live. **Target changed (your decision): updates within 5 s
+  (p95).** Measured 2.5–3.6 s from the click; the main cause is Lambda's Kinesis polling
+  (about once per second; iterator age 1.3 s on average). Enhanced fan-out stays off;
+  re-measure in the demo environment.
 - **Commit / PR:** [#53](https://github.com/sheshagiri-62/surgegate/pull/53) (squash `e7f5b73`)
 
 ## 1. What the task was

@@ -3,6 +3,7 @@
 # failing batch, 3 retries / 1 h max age, then the on-failure SQS destination (+ alarm).
 #
 #   live-dashboard : counters in DynamoDB (deduped by message id) -> WebSocket push to organisers
+#   analytics      : S3 gzip JSON lines -> Glue table -> Athena (analytics.tf)
 #
 # The event-source mappings follow the stream (make up / make down); Lambdas, tables, the
 # WebSocket API and queues are pay per use and persistent. Nothing hourly.
@@ -92,6 +93,7 @@ locals {
     live-dashboard = { handler = "sg_consumers.live_dashboard.handler", timeout = 30 }
     ws             = { handler = "sg_consumers.ws.handler", timeout = 10 }
     ws-authorizer  = { handler = "sg_consumers.ws.authorizer", timeout = 5 }
+    analytics      = { handler = "sg_consumers.analytics.handler", timeout = 60 }
   }
   ws_stage = "live"
 }
@@ -130,7 +132,7 @@ data "aws_iam_policy_document" "consumer" {
   }
 
   dynamic "statement" {
-    for_each = each.key == "live-dashboard" ? [1] : []
+    for_each = contains(["live-dashboard", "analytics"], each.key) ? [1] : []
     content {
       sid = "ReadSaleEvents"
       actions = [
@@ -142,7 +144,7 @@ data "aws_iam_policy_document" "consumer" {
   }
 
   dynamic "statement" {
-    for_each = each.key == "live-dashboard" ? [1] : []
+    for_each = contains(["live-dashboard", "analytics"], each.key) ? [1] : []
     content {
       sid       = "OnFailureDestination"
       actions   = ["sqs:SendMessage"]
@@ -151,7 +153,7 @@ data "aws_iam_policy_document" "consumer" {
   }
 
   dynamic "statement" {
-    for_each = each.key == "ws-authorizer" ? [] : [1]
+    for_each = contains(["live-dashboard", "ws"], each.key) ? [1] : []
     content {
       sid = "CountersAndConnections"
       actions = [
@@ -163,7 +165,7 @@ data "aws_iam_policy_document" "consumer" {
   }
 
   dynamic "statement" {
-    for_each = each.key == "ws-authorizer" ? [] : [1]
+    for_each = contains(["live-dashboard", "ws"], each.key) ? [1] : []
     content {
       sid       = "WaitingRoomStatus"
       actions   = ["dynamodb:GetItem"]
@@ -172,11 +174,34 @@ data "aws_iam_policy_document" "consumer" {
   }
 
   dynamic "statement" {
-    for_each = each.key == "ws-authorizer" ? [] : [1]
+    for_each = contains(["live-dashboard", "ws"], each.key) ? [1] : []
     content {
       sid       = "PushToConnections"
       actions   = ["execute-api:ManageConnections"]
       resources = ["${aws_apigatewayv2_api.live.execution_arn}/${local.ws_stage}/POST/@connections/*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = each.key == "analytics" ? [1] : []
+    content {
+      sid       = "WriteAnalytics"
+      actions   = ["s3:PutObject"]
+      resources = ["arn:aws:s3:::${var.analytics_bucket_name}/events/*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = each.key == "analytics" ? [1] : []
+    content {
+      sid       = "DataKeyViaS3"
+      actions   = ["kms:GenerateDataKey"]
+      resources = [var.kms_key_arn]
+      condition {
+        test     = "StringEquals"
+        variable = "kms:ViaService"
+        values   = ["s3.${local.region}.amazonaws.com"]
+      }
     }
   }
 
@@ -215,6 +240,7 @@ resource "aws_lambda_function" "consumer" {
       QUEUE_TABLE        = var.queue_table_name
       WS_ENDPOINT        = "https://${aws_apigatewayv2_api.live.id}.execute-api.${local.region}.amazonaws.com/${local.ws_stage}"
       LIVE_KEY_SECRET_ID = aws_secretsmanager_secret.live_key.arn
+      ANALYTICS_BUCKET   = var.analytics_bucket_name
     }
   }
 

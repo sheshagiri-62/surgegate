@@ -219,6 +219,9 @@ module "events" {
   queue_table_name     = module.data.queue_table_name
   queue_table_arn      = module.data.queue_table_arn
   alerts_topic_arn     = module.async.alerts_topic_arn
+  # analytics (Day 8 Task 3b)
+  analytics_bucket_name = module.data.bucket_names["analytics"]
+  kms_key_arn           = module.data.kms_key_arn
 }
 
 

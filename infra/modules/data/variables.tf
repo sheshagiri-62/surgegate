@@ -87,7 +87,7 @@ variable "redis_replicas" {
 variable "buckets" {
   description = "S3 buckets to create (<project>-<env>-<name>-<account>)."
   type        = list(string)
-  default     = ["tickets", "seatmaps"]
+  default     = ["tickets", "seatmaps", "analytics"]
 }
 
 variable "bucket_noncurrent_days" {
