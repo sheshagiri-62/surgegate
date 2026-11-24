@@ -98,8 +98,8 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 - [x] 1. Step Functions hold timer: wait 10 minutes, release only if still held by the same hold ([task-02-hold-timer](day-07/task-02-hold-timer.md); live: released after the wait, `hold_released` on the bus)
 - [x] 2. Orders with idempotency keys; Razorpay test-mode checkout in the buyer app — **mock provider per [ADR 004](../adr/004-mock-payment-provider.md)** ([task-03-orders-checkout](day-07/task-03-orders-checkout.md); live via CloudFront: same key = same order, pay → redirect, webhook sent)
-- [ ] 3. Webhook endpoint: verify signature, put on SQS; order worker confirms exactly once by payment ID
-- [ ] 4. Late-payment rule: re-hold if seats are free, otherwise refund (test mode) and notify
+- [x] 3. Webhook endpoint: verify signature, put on SQS; order worker confirms exactly once by payment ID ([task-04-payments-webhook](day-07/task-04-payments-webhook.md); live: duplicate = no change, bad signature = 400, DLQ alarm demo)
+- [x] 4. Late-payment rule: re-hold if seats are free, otherwise refund (test mode) and notify ([task-04-payments-webhook](day-07/task-04-payments-webhook.md); live: free = paid, resold = refunded + `payment_refunded`)
 
 **Day 8 — Thu 26 Nov**
 
