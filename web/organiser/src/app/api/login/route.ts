@@ -1,7 +1,6 @@
 // Password sign-in against Cognito (organiser-web is a public client: no secret), done on the
 // server so the token goes straight into the httpOnly cookie.
-import { NextResponse } from "next/server";
-
+import { seeOther } from "@/lib/redirect";
 import { COOKIE, cookieOptions } from "@/lib/session";
 
 export async function POST(req: Request) {
@@ -25,12 +24,14 @@ export async function POST(req: Request) {
   });
   const data = await r.json();
   const result = data.AuthenticationResult;
-  const base = new URL("/organiser/", req.url);
   if (!r.ok || !result) {
-    const msg = encodeURIComponent(data.message ?? "Sign-in failed");
-    return NextResponse.redirect(new URL(`login?error=${msg}`, base), 303);
+    return seeOther("/organiser/login", { error: data.message ?? "Sign-in failed" });
   }
-  const res = NextResponse.redirect(new URL("events", base), 303);
-  res.cookies.set(COOKIE, result.AccessToken, cookieOptions(result.ExpiresIn));
+  const res = seeOther("/organiser/events");
+  const o = cookieOptions(result.ExpiresIn);
+  res.headers.append(
+    "Set-Cookie",
+    `${COOKIE}=${result.AccessToken}; Path=${o.path}; Max-Age=${o.maxAge}; HttpOnly; SameSite=Strict${o.secure ? "; Secure" : ""}`,
+  );
   return res;
 }

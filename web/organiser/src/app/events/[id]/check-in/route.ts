@@ -1,15 +1,13 @@
 // Gate check-in: send the scanned token to the booking API; show the result on the page.
-import { NextResponse } from "next/server";
-
+import { seeOther } from "@/lib/redirect";
 import { token } from "@/lib/session";
 
 const BASE = process.env.BOOKING_API_URL ?? "http://booking-api.booking.svc.cluster.local";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const back = new URL(`/organiser/events/${id}`, req.url);
   const t = await token();
-  if (!t) return NextResponse.redirect(new URL("/organiser/login", req.url), 303);
+  if (!t) return seeOther("/organiser/login");
   const form = await req.formData();
   const r = await fetch(`${BASE}/org/events/${id}/check-in`, {
     method: "POST",
@@ -18,9 +16,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     cache: "no-store",
   });
   const body = await r.json().catch(() => ({}));
-  back.searchParams.set("checkin", body.result ?? `error ${r.status}`);
-  if (body.seat) back.searchParams.set("seat", body.seat);
-  const detail = body.reason ?? (body.used_at ? `first used ${new Date(body.used_at).toLocaleTimeString("en-IN")}` : "");
-  if (detail) back.searchParams.set("detail", detail);
-  return NextResponse.redirect(back, 303);
+  const q: Record<string, string> = { checkin: body.result ?? `error ${r.status}` };
+  if (body.seat) q.seat = body.seat;
+  // used_at is UTC; say so (the server has no local time zone).
+  const detail = body.reason ?? (body.used_at ? `first used ${String(body.used_at).slice(11, 19)} UTC` : "");
+  if (detail) q.detail = detail;
+  return seeOther(`/organiser/events/${id}`, q);
 }
