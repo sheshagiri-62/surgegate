@@ -76,3 +76,17 @@ variable "alert_email" {
   default     = ""
   sensitive   = true
 }
+
+variable "ses_sender" {
+  description = "SES sender address (verified). ONLY in the uncommitted alerts.auto.tfvars / TF_VAR."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ses_sandbox_recipient" {
+  description = "SES sandbox recipient for every ticket email. ONLY in the uncommitted alerts.auto.tfvars."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

@@ -232,4 +232,16 @@ module "async" {
   # DLQ alarm email: address only in the uncommitted alerts.auto.tfvars (never in Git).
   alert_email_enabled = true
   alert_email         = var.alert_email
+
+  # Ticket worker (Day 8 Task 1)
+  secrets_prefix        = "${var.project}/${local.env}"
+  tickets_bucket_name   = module.data.bucket_names["tickets"]
+  tickets_bucket_arn    = "arn:aws:s3:::${module.data.bucket_names["tickets"]}"
+  event_bus_name        = module.events.bus_name
+  cognito_user_pool_id  = module.identity.user_pool_id
+  cognito_user_pool_arn = module.identity.user_pool_arn
+  ses_identity_enabled  = true
+  ses_sender            = var.ses_sender            # uncommitted alerts.auto.tfvars
+  ses_sandbox_recipient = var.ses_sandbox_recipient # uncommitted alerts.auto.tfvars
+  sweep_enabled         = var.enable_data
 }

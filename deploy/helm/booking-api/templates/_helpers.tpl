@@ -68,4 +68,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ join "," .Values.payments.returnOrigins | quote }}
 - name: PAYMENTS_QUEUE_URL
   value: {{ .Values.payments.queueUrl | quote }}
+- name: TICKETS_BUCKET
+  value: {{ .Values.tickets.bucket | quote }}
 {{- end -}}

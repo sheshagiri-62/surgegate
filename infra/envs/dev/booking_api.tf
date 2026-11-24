@@ -90,6 +90,24 @@ data "aws_iam_policy_document" "booking_api" {
     resources = [module.async.payments_queue_arn]
   }
 
+  # "My tickets": presigned GET links to ticket PDFs (the bucket is SSE-KMS with the data key).
+  statement {
+    sid       = "ReadTicketPdfs"
+    actions   = ["s3:GetObject"]
+    resources = ["arn:aws:s3:::${module.data.bucket_names["tickets"]}/tickets/*"]
+  }
+
+  statement {
+    sid       = "DecryptTicketPdfsViaS3"
+    actions   = ["kms:Decrypt"]
+    resources = [module.data.kms_key_arn]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${var.region}.amazonaws.com"]
+    }
+  }
+
   # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
   statement {
     sid       = "WaitingRoomControls"
