@@ -108,6 +108,13 @@ data "aws_iam_policy_document" "booking_api" {
     }
   }
 
+  # Live dashboard: sign 60-second WebSocket tokens for organisers.
+  statement {
+    sid       = "ReadLiveKey"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [module.events.live_key_secret_arn]
+  }
+
   # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
   statement {
     sid       = "WaitingRoomControls"

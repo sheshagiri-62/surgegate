@@ -212,7 +212,15 @@ module "events" {
   name           = local.name
   stream_enabled = var.enable_kinesis
   shard_count    = 1
+
+  # Consumers (Day 8 Task 3): live dashboard over WebSocket
+  consumers_source_dir = "${path.root}/../../../services/event-consumers/src"
+  secrets_prefix       = "${var.project}/${local.env}"
+  queue_table_name     = module.data.queue_table_name
+  queue_table_arn      = module.data.queue_table_arn
+  alerts_topic_arn     = module.async.alerts_topic_arn
 }
+
 
 # ---------------------------------------------------------------------------
 # Async work: the 10-minute hold timer (Step Functions + release Lambda in the VPC).

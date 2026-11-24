@@ -70,4 +70,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.payments.queueUrl | quote }}
 - name: TICKETS_BUCKET
   value: {{ .Values.tickets.bucket | quote }}
+- name: LIVE_KEY_SECRET_ID
+  value: {{ .Values.live.keySecretId | quote }}
+- name: LIVE_WS_URL
+  value: {{ .Values.live.wsUrl | quote }}
 {{- end -}}
