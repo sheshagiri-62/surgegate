@@ -7,6 +7,9 @@ that does not exist, so organisers cannot even learn which event IDs exist elsew
 
 from __future__ import annotations
 
+import json
+import os
+import time
 import uuid
 from typing import Annotated
 
@@ -15,7 +18,7 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app import cache, queue_control
+from app import cache, live_token, queue_control
 from app.auth import Organiser
 from app.db import get_session
 from app.models import Event, Seat, SeatStatus, Tenant
@@ -185,3 +188,40 @@ def waiting_room(event_id: uuid.UUID, org: Organiser, db: DB):
     if item is None:
         raise HTTPException(404, "no waiting room for this event")
     return queue_control.summary(item)
+
+
+# --- Live dashboard (Day 8 Task 3) ----------------------------------------------------------
+
+
+@router.post("/events/{event_id}/live-token")
+def live_dashboard_token(event_id: uuid.UUID, org: Organiser, db: DB) -> dict:
+    """A 60-second token to open the live-dashboard WebSocket for one of YOUR events.
+
+    Browsers can't set headers on a WebSocket, so the token goes in the URL; it expires in 60 s
+    and only opens this event's numbers. Another tenant's event is a 404, as everywhere here.
+    """
+    event = _own_event(db, org, event_id)
+    token = live_token.issue(str(event.id), org.sub, _live_key())
+    return {
+        "token": token,
+        "ws_url": f"{os.environ.get('LIVE_WS_URL', '')}?token={token}",
+        "expires_in": live_token.TTL_SECONDS,
+    }
+
+
+_live_key_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _live_key() -> dict:
+    if raw := os.getenv("LIVE_KEY_JSON"):
+        return json.loads(raw)
+    secret_id = os.environ["LIVE_KEY_SECRET_ID"]
+    hit = _live_key_cache.get(secret_id)
+    if hit and time.monotonic() - hit[0] < 300:
+        return hit[1]
+    import boto3
+
+    sm = boto3.client("secretsmanager", region_name=os.getenv("AWS_REGION", "ap-south-1"))
+    value = json.loads(sm.get_secret_value(SecretId=secret_id)["SecretString"])
+    _live_key_cache[secret_id] = (time.monotonic(), value)
+    return value

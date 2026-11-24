@@ -32,3 +32,28 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "consumers_source_dir" {
+  description = "Directory holding the sg_consumers package (services/event-consumers/src)."
+  type        = string
+}
+
+variable "secrets_prefix" {
+  description = "Secrets Manager prefix, e.g. surgegate/dev."
+  type        = string
+}
+
+variable "queue_table_name" {
+  description = "Waiting-room table (the dashboard shows status and admission rate)."
+  type        = string
+}
+
+variable "queue_table_arn" {
+  description = "ARN of the waiting-room table."
+  type        = string
+}
+
+variable "alerts_topic_arn" {
+  description = "SNS topic for the consumers' failure alarm."
+  type        = string
+}

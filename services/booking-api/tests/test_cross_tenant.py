@@ -31,6 +31,7 @@ RECIPES = {
         "prepare": [OPEN_QUEUE],
     },
     ("GET", "/org/events/{event_id}/queue"): {"prepare": [OPEN_QUEUE]},
+    ("POST", "/org/events/{event_id}/live-token"): {},
     ("PUT", "/org/events/{event_id}/seats"): {
         "content": b"section,row,number,zone,price_inr\nX,1,1,gold,1\n",
         "headers": {"Content-Type": "text/csv"},

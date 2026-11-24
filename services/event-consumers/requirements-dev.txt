@@ -1,0 +1,5 @@
+# Lambda code uses only the standard library + boto3 (provided by the Lambda runtime).
+boto3==1.44.9
+moto[dynamodb,s3]==5.2.5
+pytest==9.2.0
+ruff==0.17.6

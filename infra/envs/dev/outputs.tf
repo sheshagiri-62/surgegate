@@ -101,3 +101,8 @@ output "sale_events" {
     log_group = module.events.log_group
   }
 }
+
+output "live_ws_url" {
+  description = "Organiser live-dashboard WebSocket URL (booking API: LIVE_WS_URL)."
+  value       = module.events.live_ws_url
+}

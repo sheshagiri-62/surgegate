@@ -8,7 +8,7 @@ extend-exclude = ["services/workers/src/sg_workers/_vendor"] # vendored, unmodif
 select = ["E", "W", "F", "I", "B", "UP", "S"]
 
 [lint.isort]
-known-first-party = ["app", "sg_queue", "sg_workers"] # each service's own package
+known-first-party = ["app", "sg_queue", "sg_workers", "sg_consumers"] # each service's own package
 
 [lint.per-file-ignores]
 "**/tests/**" = ["S101"] # assert is fine in pytest

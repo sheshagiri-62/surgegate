@@ -107,3 +107,8 @@ orderWorker:
 # "My tickets": presigned 5-minute links to the ticket PDFs (Day 8 Task 1).
 tickets:
   bucket: surgegate-dev-tickets-968077439619
+
+# Organiser live dashboard (Day 8 Task 3): the booking API signs 60-second WebSocket tokens.
+live:
+  keySecretId: surgegate/dev/events/live-key
+  wsUrl: "" # terraform output live_ws_url (set after the apply)
