@@ -125,3 +125,26 @@ def test_handler_publishes_only_when_something_was_released(db, monkeypatch):
     release_hold.handler({"hold_id": h, "event_id": ev}, None)
     release_hold.handler({"hold_id": h, "event_id": ev}, None)  # retry: nothing more
     assert [d["released_seats"] for _, d in sent] == [["E-1-1"]]
+
+
+def test_release_locks_the_hold_row_before_the_seats(db):
+    """Lock order = hold, then seats (same as the order worker): while another transaction
+    holds the hold row, the release waits instead of touching any seat."""
+    import threading
+
+    ev = make_event(db)
+    h = make_hold(db, ev)
+    make_seat(db, ev, "F-1-1", "held", h)
+    blocker = connect()
+    blocker.run("BEGIN")
+    blocker.run("SELECT id FROM holds WHERE id = CAST(:h AS uuid) FOR UPDATE", h=h)
+    out = {}
+    t = threading.Thread(target=lambda: out.update(release_hold.release(h)))
+    t.start()
+    t.join(timeout=1.5)
+    assert t.is_alive()  # waiting on the hold lock
+    assert seat_status(db, "F-1-1", ev)[0] == "held"
+    blocker.run("ROLLBACK")
+    blocker.close()
+    t.join(timeout=10)
+    assert out["released_seats"] == ["F-1-1"]

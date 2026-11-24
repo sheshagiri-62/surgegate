@@ -83,6 +83,13 @@ data "aws_iam_policy_document" "booking_api" {
     resources = [module.data.razorpay_secret_arn]
   }
 
+  # Webhook endpoint: put verified payment webhooks on the payments queue (send only).
+  statement {
+    sid       = "EnqueuePaymentWebhooks"
+    actions   = ["sqs:SendMessage"]
+    resources = [module.async.payments_queue_arn]
+  }
+
   # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
   statement {
     sid       = "WaitingRoomControls"

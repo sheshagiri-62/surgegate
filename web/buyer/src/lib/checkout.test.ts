@@ -1,8 +1,12 @@
-import { canPay, orderKey, orderView } from "./checkout";
+import { canPay, forgetOrderKey, orderKey, orderView } from "./checkout";
 
 function memoryStore() {
   const m = new Map<string, string>();
-  return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+  return {
+    getItem: (k: string) => m.get(k) ?? null,
+    setItem: (k: string, v: string) => void m.set(k, v),
+    removeItem: (k: string) => void m.delete(k),
+  };
 }
 
 describe("orderKey", () => {
@@ -13,6 +17,15 @@ describe("orderKey", () => {
     expect(orderKey("hold-1", store, gen)).toBe("key-1");
     expect(orderKey("hold-1", store, gen)).toBe("key-1");
     expect(orderKey("hold-2", store, gen)).toBe("key-2");
+  });
+
+  it("starts a new key after a failed payment (retry = new order)", () => {
+    const store = memoryStore();
+    let n = 0;
+    const gen = () => `key-${++n}`;
+    expect(orderKey("hold-1", store, gen)).toBe("key-1");
+    forgetOrderKey("hold-1", store);
+    expect(orderKey("hold-1", store, gen)).toBe("key-2");
   });
 });
 

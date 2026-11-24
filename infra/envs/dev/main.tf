@@ -229,4 +229,7 @@ module "async" {
   kms_key_arn        = module.data.kms_key_arn
   sale_events_stream = module.events.stream_name
   sale_events_arn    = module.events.stream_arn
+  # DLQ alarm email: address only in the uncommitted alerts.auto.tfvars (never in Git).
+  alert_email_enabled = true
+  alert_email         = var.alert_email
 }

@@ -88,3 +88,18 @@ payments:
   # site is deployed there.
   returnOrigins:
     - http://localhost:3000
+  # Webhook endpoint -> this SQS queue -> order worker (Day 7 Task 4).
+  queueUrl: https://sqs.ap-south-1.amazonaws.com/968077439619/surgegate-dev-payments
+
+# Order worker: same image, `python -m app.order_worker`, long-polls the payments queue and
+# confirms payments exactly once. Own service account and IAM role (infra/envs/dev/order_worker.tf).
+orderWorker:
+  enabled: true
+  replicaCount: 1
+  serviceAccount: order-worker
+  resources:
+    requests:
+      cpu: 25m
+      memory: 96Mi
+    limits:
+      memory: 256Mi

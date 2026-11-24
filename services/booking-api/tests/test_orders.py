@@ -37,6 +37,9 @@ class FakeProvider:
     def verify_webhook_signature(self, raw_body, signature):
         return False
 
+    def refund(self, payment_id, amount_paise):
+        return "rfnd_test"
+
 
 @pytest.fixture
 def provider(api, monkeypatch):

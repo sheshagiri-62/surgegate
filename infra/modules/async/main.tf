@@ -2,7 +2,10 @@
 #
 # Hold timer (Day 7): the booking API starts one Standard execution per hold, named by the
 # hold id:   Wait (wait_seconds, default 600) -> Release (Lambda in the VPC, conditional UPDATE)
-# Pay per use: about $0.025 per 1,000 state transitions; nothing hourly.
+# Payment intake (Day 7 Task 4): webhook endpoint -> SQS payments -> order worker (EKS pod);
+# 5 failed receives -> DLQ -> CloudWatch alarm -> SNS (email).
+# Pay per use: about $0.025 per 1,000 state transitions; SQS requests (free tier);
+# one alarm ($0.10/month). Nothing hourly.
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -210,4 +213,73 @@ resource "aws_sfn_state_machine" "hold_timer" {
   })
 
   tags = local.tags
+}
+
+# --- Payment intake: SQS + DLQ ---------------------------------------------------------------
+resource "aws_sqs_queue" "payments_dlq" {
+  name                      = "${var.name}-payments-dlq"
+  message_retention_seconds = 1209600 # 14 days to inspect and replay
+  sqs_managed_sse_enabled   = true
+  tags                      = local.tags
+}
+
+resource "aws_sqs_queue" "payments" {
+  name                       = "${var.name}-payments"
+  visibility_timeout_seconds = var.payments_visibility_timeout # > worst-case worker time (~15 s)
+  receive_wait_time_seconds  = 20                              # long polling
+  message_retention_seconds  = 345600                          # 4 days
+  sqs_managed_sse_enabled    = true
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.payments_dlq.arn
+    maxReceiveCount     = var.payments_max_receive_count
+  })
+
+  tags = local.tags
+}
+
+resource "aws_sqs_queue_redrive_allow_policy" "payments_dlq" {
+  queue_url = aws_sqs_queue.payments_dlq.id
+  redrive_allow_policy = jsonencode({
+    redrivePermission = "byQueue"
+    sourceQueueArns   = [aws_sqs_queue.payments.arn]
+  })
+}
+
+# --- Alerts: DLQ not empty -> SNS -> email -----------------------------------------------------
+resource "aws_sns_topic" "alerts" {
+  name = "${var.name}-alerts"
+  # No KMS: CloudWatch alarms can't publish to a topic encrypted with the AWS-managed SNS key,
+  # and alerts carry no secrets.
+  tags = local.tags
+}
+
+# The address is NOT in Git: it comes from an uncommitted *.auto.tfvars (or TF_VAR_alert_email).
+# The committed flag keeps the subscription in place when a plan runs without the address (CI).
+resource "aws_sns_topic_subscription" "alerts_email" {
+  count     = var.alert_email_enabled ? 1 : 0
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+
+  lifecycle {
+    ignore_changes = [endpoint]
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "payments_dlq" {
+  alarm_name          = "${var.name}-payments-dlq-not-empty"
+  alarm_description   = "A payment webhook failed 5 times and is in the DLQ: a paid order may be unconfirmed. Inspect, fix, then redrive."
+  namespace           = "AWS/SQS"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  dimensions          = { QueueName = aws_sqs_queue.payments_dlq.name }
+  statistic           = "Maximum"
+  period              = 60
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+  tags                = local.tags
 }

@@ -94,6 +94,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Not lossless once the new rules are used: restoring the old global UNIQUE constraints
+    # fails (and the downgrade stops) if two buyers used the same idempotency key, or a seat
+    # appears in more than one order item. That refusal is intended.
     op.drop_table("payments")
     pg.ENUM(name="payment_status").drop(op.get_bind(), checkfirst=True)
 

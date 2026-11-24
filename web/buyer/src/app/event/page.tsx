@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import SeatPicker from "@/components/SeatPicker";
 import SignIn from "@/components/SignIn";
 import { ApiError, createOrder, getSeatMap, holdSeats, needsQueue, type Hold } from "@/lib/api";
-import { canPay, MIN_SECONDS_TO_PAY, orderKey } from "@/lib/checkout";
+import { canPay, forgetOrderKey, MIN_SECONDS_TO_PAY, orderKey } from "@/lib/checkout";
 import { loadTokens, signOut, type Tokens } from "@/lib/cognito";
 import { clearPass, loadPass } from "@/lib/queue";
 import {
@@ -105,14 +105,25 @@ function EventPage() {
     setBusy(true);
     setMessage("");
     try {
-      const order = await createOrder(
-        eventId,
-        hold.hold_id,
-        orderKey(hold.hold_id), // same key on retry/reload -> same order
-        `${window.location.origin}/order/`,
-        tokens.accessToken,
-        bookingPass.booking_pass,
-      );
+      const create = () =>
+        createOrder(
+          eventId,
+          hold.hold_id,
+          orderKey(hold.hold_id), // same key on retry/reload -> same order
+          `${window.location.origin}/order/`,
+          tokens.accessToken,
+          bookingPass.booking_pass,
+        );
+      let order = await create();
+      if (order.status === "failed") {
+        // The last payment failed: a new key makes a new order for the same hold.
+        forgetOrderKey(hold.hold_id);
+        order = await create();
+      }
+      if (order.status === "paid") {
+        router.push(`/order/?id=${order.order_id}`);
+        return;
+      }
       if (order.checkout?.type === "redirect") {
         window.location.assign(order.checkout.url); // the provider's checkout page
         return;

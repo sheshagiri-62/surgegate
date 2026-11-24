@@ -180,3 +180,27 @@ def test_no_callback_shows_a_result_page(client):
     o = new_order(client, callback="")
     r = client.post(f"/mockpay/checkout/{o['id']}/pay", data={"outcome": "success"})
     assert r.status_code == 200 and "Payment captured" in r.text
+
+
+def test_refund_is_razorpay_shaped_and_idempotent(client):
+    o = new_order(client, amount=40000)
+    pid = client.post("/mockpay/test/pay", json={"order_id": o["id"]}).json()["payment"]["id"]
+    r1 = client.post(f"/v1/payments/{pid}/refund", json={"amount": 40000}, headers=AUTH)
+    r2 = client.post(f"/v1/payments/{pid}/refund", json={"amount": 40000}, headers=AUTH)
+    assert r1.status_code == 200 and r1.json()["id"].startswith("rfnd_")
+    assert r2.json()["id"] == r1.json()["id"]  # a retried worker never refunds twice
+    assert (r1.json()["amount"], r1.json()["status"]) == (40000, "processed")
+    assert len(client.get(f"/mockpay/test/orders/{o['id']}").json()["refunds"]) == 1
+
+
+def test_refund_rules(client):
+    o = new_order(client, amount=40000)
+    failed = client.post("/mockpay/test/pay", json={"order_id": o["id"], "outcome": "fail"}).json()[
+        "payment"
+    ]["id"]
+    assert client.post(f"/v1/payments/{failed}/refund", json={}, headers=AUTH).status_code == 400
+    ok = client.post("/mockpay/test/pay", json={"order_id": o["id"]}).json()["payment"]["id"]
+    too_much = client.post(f"/v1/payments/{ok}/refund", json={"amount": 50000}, headers=AUTH)
+    assert too_much.status_code == 400
+    assert client.post(f"/v1/payments/{ok}/refund", json={}).status_code == 401
+    assert client.post("/v1/payments/pay_nope/refund", json={}, headers=AUTH).status_code == 404

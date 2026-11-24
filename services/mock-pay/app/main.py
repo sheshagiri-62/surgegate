@@ -3,6 +3,7 @@
 What it copies from Razorpay (so the booking API code is the same for both):
   POST /v1/orders          HTTP Basic key_id:key_secret -> {"id": "order_...", "entity": "order"}
   GET  /v1/orders/{id}     the order
+  POST /v1/payments/{id}/refund   refund a captured payment (idempotent: one refund per payment)
   webhook                  POST <WEBHOOK_URL> with Razorpay's payload shape, headers
                            X-Razorpay-Signature = hex HMAC-SHA256(webhook_secret, RAW body)
                            X-Razorpay-Event-Id  = unique per event (a re-send repeats it)
@@ -51,6 +52,7 @@ ORDERS: dict[str, dict] = {}
 PAYMENTS: dict[str, dict] = {}
 EVENTS: dict[str, tuple[str, bytes]] = {}  # payment id -> (event id, raw body) for re-sends
 DELIVERIES: dict[str, list[dict]] = {}  # order id -> webhook delivery attempts
+REFUNDS: dict[str, dict] = {}  # payment id -> its (single) refund
 LOCK = threading.Lock()
 SECRET_CACHE_SECONDS = 300
 _secret: tuple[float, dict] | None = None
@@ -158,6 +160,42 @@ def get_order(order_id: str, request: Request):
     if order_id not in ORDERS:
         raise HTTPException(404, "The id provided does not exist")
     return ORDERS[order_id]
+
+
+class RefundIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    amount: int | None = Field(default=None, ge=100)  # paise; default = the whole payment
+
+
+@app.post("/v1/payments/{payment_id}/refund")
+def refund_payment(payment_id: str, body: RefundIn, request: Request):
+    """Asked twice for the same payment, it returns the SAME refund (no double refund)."""
+    check_auth(request)
+    with LOCK:
+        payment = PAYMENTS.get(payment_id)
+        if payment is None:
+            raise HTTPException(404, "The id provided does not exist")
+        if payment_id in REFUNDS:
+            return REFUNDS[payment_id]
+        if payment["status"] != "captured":
+            return razorpay_error(400, "Only captured payments can be refunded")
+        amount = payment["amount"] if body.amount is None else body.amount
+        if amount > payment["amount"]:
+            return razorpay_error(400, "Refund amount exceeds the payment amount")
+        refund = {
+            "id": new_id("rfnd_"),
+            "entity": "refund",
+            "amount": amount,
+            "currency": payment["currency"],
+            "payment_id": payment_id,
+            "status": "processed",
+            "created_at": int(time.time()),
+        }
+        REFUNDS[payment_id] = refund
+        payment["status"] = "refunded"
+    log.info("refund %s for %s: %d paise", refund["id"], payment_id, amount)
+    return refund
 
 
 # --- paying ---------------------------------------------------------------------------------
@@ -385,6 +423,7 @@ def test_order(order_id: str):
     return {
         "order": ORDERS[order_id],
         "payments": [p for p in PAYMENTS.values() if p["order_id"] == order_id],
+        "refunds": [r for pid, r in REFUNDS.items() if PAYMENTS[pid]["order_id"] == order_id],
         "deliveries": DELIVERIES.get(order_id, []),
     }
 

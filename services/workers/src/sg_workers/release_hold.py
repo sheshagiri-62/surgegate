@@ -3,7 +3,9 @@
 Blueprint: "release the seats ONLY if they are still held by that same hold. A paid order
 changes them to `sold` first, so the release does nothing."
 
-One transaction:
+One transaction, locking in the SAME order as the booking API's order worker (hold row first,
+then seats), so a payment confirm and a release can't deadlock and exactly one of them wins:
+  SELECT ... FROM holds WHERE id = :hold FOR UPDATE
   UPDATE seats SET status='available', hold_id=NULL, held_until=NULL
    WHERE hold_id = :hold AND status = 'held'          -- never touches sold or re-held seats
   UPDATE holds SET status='released' WHERE id = :hold AND status = 'active'
@@ -32,6 +34,8 @@ def release(hold_id: str) -> dict:
     conn = connect()
     try:
         conn.run("BEGIN")
+        # Lock order: hold first (the order worker does the same), then seats.
+        conn.run("SELECT id FROM holds WHERE id = CAST(:hold AS uuid) FOR UPDATE", hold=hold_id)
         seats = conn.run(
             "UPDATE seats SET status = 'available', hold_id = NULL, held_until = NULL "
             "WHERE hold_id = CAST(:hold AS uuid) AND status = 'held' RETURNING label",

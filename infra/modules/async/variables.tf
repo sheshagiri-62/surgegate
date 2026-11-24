@@ -49,3 +49,28 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "payments_visibility_timeout" {
+  description = "Seconds a received payment message stays invisible (must exceed the worker's worst case, ~15 s)."
+  type        = number
+  default     = 60
+}
+
+variable "payments_max_receive_count" {
+  description = "Failed receives before a payment message moves to the DLQ."
+  type        = number
+  default     = 5
+}
+
+variable "alert_email_enabled" {
+  description = "Subscribe an email address to the alerts topic (the address itself is alert_email)."
+  type        = bool
+  default     = false
+}
+
+variable "alert_email" {
+  description = "Alert email address. Set it only in an uncommitted *.auto.tfvars or TF_VAR_alert_email."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
