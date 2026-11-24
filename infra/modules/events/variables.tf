@@ -57,3 +57,13 @@ variable "alerts_topic_arn" {
   description = "SNS topic for the consumers' failure alarm."
   type        = string
 }
+
+variable "analytics_bucket_name" {
+  description = "S3 bucket for analytics objects and Athena results (SSE-KMS)."
+  type        = string
+}
+
+variable "kms_key_arn" {
+  description = "Data KMS key (analytics bucket and Athena results)."
+  type        = string
+}

@@ -42,3 +42,4 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-24 | 7 | Day 7 summary — Tasks 0–4 done; M1 + M3 met; cost $7.61 gross MTD, $0 net (credits) | [day-07/SUMMARY](day-07/SUMMARY.md) |
 | 2026-11-24 | 8 | Task 1 — Ticket worker: order_paid → PDF with signed QR per seat → S3 → SES; My tickets (5-min links) | [task-01-ticket-worker](day-08/task-01-ticket-worker.md) |
 | 2026-11-24 | 8 | Task 3a — live-dashboard consumer + organiser WebSocket (60 s live token); duplicates count once; 2.5–3.6 s click→dashboard | [task-03a-live-dashboard](day-08/task-03a-live-dashboard.md) |
+| 2026-11-25 | 8 | Task 3b — analytics consumer: S3 gzip JSONL + Glue (projection) + Athena; RecordAgeExceeded back-fill bug fixed | [task-03b-analytics](day-08/task-03b-analytics.md) |

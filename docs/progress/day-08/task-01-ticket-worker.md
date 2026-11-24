@@ -2,9 +2,7 @@
 
 - **Date:** 2026-11-24
 - **Phase / milestone:** Phase 4 → M4 ("a buyer goes from queue to paid ticket email in one run")
-- **Status:** Done, verified live through CloudFront. **Awaiting your confirmation:**
-  - how many ticket emails are in your inbox (expected **4**: 3 redriven orders + 1 fresh order);
-  - whether the phone scan of a QR showed the `eyJ…` token.
+- **Status:** Done, verified live through CloudFront; phone scan of a QR confirmed.
 - **Commit / PR:**
   - [#50](https://github.com/sheshagiri-62/surgegate/pull/50) (squash `4800951`), deployed by
     `e8857f3 ci: deploy booking-api 4800951a4c85`;
@@ -216,8 +214,14 @@ buyer ── GET /me/tickets (Cognito) ──► presigned S3 GET, 5 minutes
   - `GET /me/tickets` → 200, seats A-1-7/A-1-8, `emailed: true`;
   - presigned link → 200 `application/pdf`, 188,836 bytes, `%PDF-1.4`, `X-Amz-Expires=300`;
   - **the same link 319 s later → 403 `AccessDenied: Request has expired`**.
-- **Your checks (awaiting confirmation):** inbox count of ticket emails (expected 4) plus the
-  ALARM/OK emails; phone scan of one QR (expected: a long `eyJ…` text with one dot).
+- **Your checks:**
+  - **Phone scan OK:** your phone decoded the token: `typ=ticket`, seat A-1-1, order `54e2da3b…`,
+    ticket `d479c41c…`, `kid t1`, signature present.
+  - **Inbox:** you reported 8 emails, while SES, the worker logs and the database all show
+    exactly **5** ticket emails (5 distinct order IDs, one SES message ID each; 6 SES sends in
+    24 h including the verification email). The difference is most likely Gmail's count
+    including other AWS mail (verification, SNS subscription, alarm OK on creation) and/or
+    threading by subject.
 
 ## 6. Cost impact
 
