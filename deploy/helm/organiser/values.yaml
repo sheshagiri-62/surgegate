@@ -1,7 +1,7 @@
 # organiser chart values (dev). image.tag is changed ONLY by build-deploy-organiser.yml.
 image:
   repository: 968077439619.dkr.ecr.ap-south-1.amazonaws.com/surgegate/organiser
-  tag: "not-built-yet" # set by build-deploy-organiser
+  tag: "5ed9167b08a5" # set by build-deploy
   pullPolicy: IfNotPresent
 
 replicaCount: 1
