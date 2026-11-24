@@ -4,7 +4,8 @@ The booking API only ever talks to `PaymentProvider`:
 
     create_order(amount_paise, currency, receipt, notes) -> ProviderOrder(id, checkout)
     checkout(provider_order_id)                          -> how the browser pays
-    verify_webhook_signature(raw_body, signature)        -> bool   (used by Task 4's webhook)
+    verify_webhook_signature(raw_body, signature)        -> bool   (the webhook endpoint)
+    refund(payment_id, amount_paise)                     -> refund id (idempotent per payment)
 
 `checkout` is a small descriptor the buyer app follows:
     mock:      {"type": "redirect", "url": "https://<cloudfront>/mockpay/checkout/order_..."}
@@ -57,6 +58,8 @@ class PaymentProvider(Protocol):
 
     def verify_webhook_signature(self, raw_body: bytes, signature: str) -> bool: ...
 
+    def refund(self, payment_id: str, amount_paise: int) -> str: ...
+
 
 def payment_secret() -> dict:
     if raw := os.getenv("PAYMENT_SECRET_JSON"):
@@ -90,26 +93,35 @@ class MockProvider:
         self.checkout_base = checkout_base.rstrip("/")
         self.timeout = timeout
 
-    def create_order(
-        self, amount_paise: int, currency: str, receipt: str, notes: dict[str, str]
-    ) -> ProviderOrder:
+    def _post(self, path: str, payload: dict) -> dict:
         secret = payment_secret()
         auth = base64.b64encode(f"{secret['key_id']}:{secret['key_secret']}".encode()).decode()
         req = urllib.request.Request(  # noqa: S310 - http(s) only, checked in __init__
-            f"{self.api_url}/v1/orders",
-            data=json.dumps(
-                {"amount": amount_paise, "currency": currency, "receipt": receipt, "notes": notes}
-            ).encode(),
+            f"{self.api_url}{path}",
+            data=json.dumps(payload).encode(),
             headers={"Authorization": f"Basic {auth}", "Content-Type": "application/json"},
             method="POST",
         )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as r:  # noqa: S310 - http(s) only, checked in __init__
-                body = json.loads(r.read())
+                return json.loads(r.read())
         except (urllib.error.URLError, TimeoutError, ValueError) as exc:
-            log.error("mock provider create_order failed: %s", type(exc).__name__)
+            log.error("mock provider %s failed: %s", path.split("/")[2], type(exc).__name__)
             raise ProviderError("payment provider unavailable") from exc
+
+    def create_order(
+        self, amount_paise: int, currency: str, receipt: str, notes: dict[str, str]
+    ) -> ProviderOrder:
+        body = self._post(
+            "/v1/orders",
+            {"amount": amount_paise, "currency": currency, "receipt": receipt, "notes": notes},
+        )
         return ProviderOrder(id=body["id"], checkout=self.checkout(body["id"]))
+
+    def refund(self, payment_id: str, amount_paise: int) -> str:
+        """Razorpay-shaped POST /v1/payments/{id}/refund. The mock returns the SAME refund if
+        asked twice for one payment, so a retried worker never refunds twice."""
+        return self._post(f"/v1/payments/{payment_id}/refund", {"amount": amount_paise})["id"]
 
     def checkout(self, provider_order_id: str) -> dict:
         return {

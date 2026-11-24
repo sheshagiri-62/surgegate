@@ -33,12 +33,18 @@ def alembic_cfg():
 def migrated_engine(alembic_cfg):
     """A database migrated to head once per test session (from an empty schema)."""
     from alembic import command
+    from sqlalchemy import text
 
     from app.db import make_engine
 
-    command.downgrade(alembic_cfg, "base")
-    command.upgrade(alembic_cfg, "head")
     engine = make_engine(os.environ["DATABASE_URL"])
+    # Start from an EMPTY schema (not `downgrade base`): data left by an earlier run may be
+    # valid under the new rules but not the old ones (e.g. per-buyer idempotency keys), and a
+    # downgrade then rightly refuses. test_migrations still checks the downgrade path.
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    command.upgrade(alembic_cfg, "head")
     yield engine
     engine.dispose()
 

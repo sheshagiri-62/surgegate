@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import AnyUser
-from app.routes import buyer, orders, organiser
+from app.routes import buyer, orders, organiser, webhooks
 
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 
@@ -30,6 +30,7 @@ app.include_router(organiser.router)
 app.include_router(buyer.router)
 app.include_router(orders.book)
 app.include_router(orders.mine)
+app.include_router(webhooks.router)
 
 
 @app.get("/healthz")

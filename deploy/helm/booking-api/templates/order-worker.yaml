@@ -1,0 +1,79 @@
+{{- if .Values.orderWorker.enabled }}
+# EKS Pod Identity maps this service account to surgegate-<env>-order-worker
+# (infra/envs/<env>/order_worker.tf): receive/delete on the payments queue, the database,
+# the payment keys (refunds) and the sale-events stream. Nothing else.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.orderWorker.serviceAccount }}
+  labels:
+    {{- include "booking-api.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-order-worker
+  labels:
+    {{- include "booking-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: order-worker
+spec:
+  replicas: {{ .Values.orderWorker.replicaCount }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}-order-worker
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        # Own name label: must NOT match the booking-api Service selector (that would put the
+        # worker in the ALB target group).
+        app.kubernetes.io/name: {{ .Chart.Name }}-order-worker
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/version: {{ .Values.image.tag | quote }}
+        app.kubernetes.io/part-of: surgegate
+        app.kubernetes.io/component: order-worker
+    spec:
+      serviceAccountName: {{ .Values.orderWorker.serviceAccount }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: order-worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "app.order_worker"]
+          env:
+            {{- include "booking-api.dbEnv" . | nindent 12 }}
+            {{- include "booking-api.paymentsEnv" . | nindent 12 }}
+            - name: WORKER_HEARTBEAT
+              value: /tmp/heartbeat
+          # The loop touches /tmp/heartbeat at least every ~20 s (SQS long poll).
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import os,sys,time; sys.exit(time.time() - os.path.getmtime('/tmp/heartbeat') > 120)"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.orderWorker.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Mi
+{{- end }}

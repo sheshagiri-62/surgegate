@@ -69,3 +69,10 @@ variable "enable_kinesis" {
   type        = bool
   default     = true
 }
+
+variable "alert_email" {
+  description = "Email for alarms (DLQ). Set ONLY in the uncommitted alerts.auto.tfvars or TF_VAR_alert_email."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

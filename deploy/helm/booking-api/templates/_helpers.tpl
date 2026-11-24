@@ -66,4 +66,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.payments.mock.checkoutBase | quote }}
 - name: ORDER_RETURN_ORIGINS
   value: {{ join "," .Values.payments.returnOrigins | quote }}
+- name: PAYMENTS_QUEUE_URL
+  value: {{ .Values.payments.queueUrl | quote }}
 {{- end -}}
