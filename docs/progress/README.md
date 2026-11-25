@@ -43,4 +43,8 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-24 | 8 | Task 1 — Ticket worker: order_paid → PDF with signed QR per seat → S3 → SES; My tickets (5-min links) | [task-01-ticket-worker](day-08/task-01-ticket-worker.md) |
 | 2026-11-24 | 8 | Task 3a — live-dashboard consumer + organiser WebSocket (60 s live token); duplicates count once; 2.5–3.6 s click→dashboard | [task-03a-live-dashboard](day-08/task-03a-live-dashboard.md) |
 | 2026-11-25 | 8 | Task 3b — analytics consumer: S3 gzip JSONL + Glue (projection) + Athena; RecordAgeExceeded back-fill bug fixed | [task-03b-analytics](day-08/task-03b-analytics.md) |
+| 2026-11-25 | 8 | Task 4 — Organiser SSR dashboard on EKS + gate check-in + attendee export; buyer email on the order, CSV escaping, CloudFront `/organiser*` | [task-04-organiser-dashboard](day-08/task-04-organiser-dashboard.md) |
+| 2026-11-25 | 8 | **M4 met** — queue → paid ticket email, duplicate webhook = no change, unpaid hold released, organiser live (0.3–3.7 s) | [phase-4-milestone](phase-4-milestone.md) |
+| 2026-11-25 | 8 | Day 8 summary — Tasks 1, 3a, 3b, 4 done (audit skipped); M4 met; $12.93 gross MTD, $0 net | [day-08/SUMMARY](day-08/SUMMARY.md) |
+| 2026-11-25 | 8 | Task 5 (added) — Buyer site on S3 + the same CloudFront (`/waiting/` page, rewrite function, CI deploy); M3 edge check re-run: all pass | [task-05-buyer-site-s3](day-08/task-05-buyer-site-s3.md) |
 | 2026-11-25 | 9 | Task 1 — demo environment: code + plan (2 NAT, Multi-AZ RDS, Redis replica, Karpenter, Kinesis on-demand); apply on Day 10 | [task-01-demo-env](day-09/task-01-demo-env.md) |
