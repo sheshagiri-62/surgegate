@@ -1,0 +1,5 @@
+apiVersion: v2
+name: karpenter-nodes
+description: SurgeGate Karpenter NodePool + EC2NodeClass (demo burst capacity)
+type: application
+version: 0.1.0

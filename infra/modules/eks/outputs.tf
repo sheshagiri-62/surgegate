@@ -32,3 +32,8 @@ output "lbc_role_arn" {
   description = "IAM role used by the AWS Load Balancer Controller (Pod Identity)."
   value       = module.lbc_pod_identity.iam_role_arn
 }
+
+output "karpenter_node_role_name" {
+  description = "Node IAM role Karpenter's EC2NodeClass uses (demo only)."
+  value       = try(module.karpenter[0].node_iam_role_name, null)
+}

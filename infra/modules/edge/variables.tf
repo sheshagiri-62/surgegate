@@ -96,6 +96,15 @@ variable "queue_api_domain" {
   default     = ""
 }
 
+variable "queue_api_enabled" {
+  description = <<-EOT
+    Add the /queue/* behaviours (origin queue_api_domain). A plain bool, because the domain is
+    unknown at plan time in a new environment and can't decide a count.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "debug_ingress_cidr" {
   description = "TEMPORARY: one /32 allowed to reach the ALB directly (demo of the no-header 403). Empty = none."
   type        = string

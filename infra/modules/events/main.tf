@@ -30,10 +30,12 @@ resource "aws_kinesis_stream" "this" {
   encryption_type  = "KMS"
   kms_key_id       = "alias/aws/kinesis"
 
+  # dev: 1 provisioned shard ($0.0175/h). demo: ON_DEMAND, which scales writes by itself (a
+  # 50k-user sale exceeds one shard's 1,000 records/s); billed per stream-hour + per GB.
   stream_mode_details {
-    stream_mode = "PROVISIONED"
+    stream_mode = var.stream_mode
   }
-  shard_count = var.shard_count # dev: 1 shard ($0.0175/h); demo: on-demand or more shards (ADR 002)
+  shard_count = var.stream_mode == "PROVISIONED" ? var.shard_count : null
 
   tags = local.tags
 }

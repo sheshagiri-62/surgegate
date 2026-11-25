@@ -85,9 +85,16 @@ module "eks" {
         }
       }
 
-      labels = { "surgegate.io/pool" = "default" }
+      # karpenter.sh/controller (demo): Karpenter's own pods run here, never on nodes it manages.
+      labels = merge(
+        { "surgegate.io/pool" = "default" },
+        var.enable_karpenter ? { "karpenter.sh/controller" = "true" } : {},
+      )
     }
   }
+
+  # Karpenter finds the security group for the nodes it launches by this tag.
+  node_security_group_tags = var.enable_karpenter ? { "karpenter.sh/discovery" = var.name } : {}
 
   tags = local.tags
 }
