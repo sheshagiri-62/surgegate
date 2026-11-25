@@ -119,8 +119,8 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [ ] 1. Build the `demo` environment: two NAT gateways, Multi-AZ RDS, Redis replica, Karpenter, 2+ nodes — **code + plan done ([task-01-demo-env](day-09/task-01-demo-env.md)); apply on Day 10 for the load tests (your call)**
 - [x] 2. WAF on CloudFront and API Gateway: rate rules, managed bot rules on `/queue/*`, challenge before join ([task-02-waf](day-09/task-02-waf.md); burst → 429, curl join → challenged, webhooks never; queue Lambdas refuse requests not through CloudFront; your Chrome join check open)
   - **Must exclude `/webhooks/*`** from rate/bot/challenge rules (server-to-server payment webhooks; auth = HMAC signature). See [task-03-orders-checkout](day-07/task-03-orders-checkout.md).
-- [ ] 3. Observability: structured logs, CloudWatch "sale room" dashboards, Container Insights, X-Ray through OpenTelemetry
-- [ ] 4. SLO alarms; SNS email alerts; three runbooks (queue backlog, booking latency, payment backlog)
+- [x] 3. Observability: structured logs, CloudWatch "sale room" dashboards, Container Insights, X-Ray through OpenTelemetry ([task-03-observability](day-09/task-03-observability.md); traces confirmed in X-Ray; Container Insights metrics in demo only, ~$0.60/day)
+- [x] 4. SLO alarms; SNS email alerts; three runbooks (queue backlog, booking latency, payment backlog) ([task-04-slo-alarms](day-09/task-04-slo-alarms.md); 14 alarms, forced ALARM → email OK; budget now counts usage before credits)
 
 **Day 10 — Sat 28 Nov**
 
