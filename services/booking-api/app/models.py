@@ -216,6 +216,8 @@ class Order(Base):
         ForeignKey("holds.id", ondelete="RESTRICT"), nullable=False
     )
     buyer_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    # From the access token at creation: ticket email + attendee export, no Cognito lookup.
+    buyer_email: Mapped[str | None] = mapped_column(String(254))
     idempotency_key: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     status: Mapped[OrderStatus] = mapped_column(
         _pg_enum(OrderStatus, "order_status"), nullable=False, server_default="pending"

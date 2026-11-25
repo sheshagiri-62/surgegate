@@ -106,6 +106,7 @@ def create_order(
     hold_id: uuid.UUID,
     key: uuid.UUID,
     return_url: str | None,
+    buyer_email: str | None = None,
 ) -> tuple[Order, bool]:
     """Return (order, created). created=False means an existing order was returned."""
     check_return_url(return_url)
@@ -148,6 +149,7 @@ def create_order(
             event_id=event_id,
             hold_id=hold_id,
             buyer_id=buyer_id,
+            buyer_email=buyer_email,
             idempotency_key=key,
             amount_paise=sum(s.price_paise for s in seats),
             provider=provider.name,

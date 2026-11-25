@@ -262,3 +262,20 @@ def test_sweep_does_not_requeue_an_order_whose_job_is_still_retrying(aws, monkey
     ticket_worker.handler({"sweep": True}, None)
     ticket_worker.handler({"sweep": True}, None)
     assert o not in {q["detail"]["data"]["order_id"] for q in aws["queued"]}
+
+
+def test_email_stored_on_the_order_is_used_without_cognito(aws, monkeypatch):
+    """Task 4 fix: the order carries the buyer email (from the access token at creation)."""
+    monkeypatch.setenv("TICKET_EMAIL_JSON", json.dumps({"sender": "t@example.com"}))
+    ticket_worker.email_config.cache_clear()
+
+    def no_cognito(sub):
+        raise AssertionError("Cognito must not be called when the order has an email")
+
+    monkeypatch.setattr(ticket_worker, "buyer_email", no_cognito)
+    o = paid_order()
+    c = connect()
+    c.run("UPDATE orders SET buyer_email = 'fan@example.test' WHERE id = CAST(:o AS uuid)", o=o)
+    c.close()
+    assert ticket_worker.handler({"Records": [message(o)]}, None) == {"batchItemFailures": []}
+    assert aws["email"][0][0] == "fan@example.test"

@@ -7,7 +7,8 @@ POST /org/events/{id}/check-in   {"token": "<the QR's signed ticket token>"}
       409 {"result": "already used", used_at}    any later scan (a screenshot, a second copy)
       400 forged / not a ticket / another event  404 unknown ticket   409 order not paid
 GET /org/events/{id}/attendees.csv
-    one row per ticket of a paid order: seat, order, buyer email (Cognito), ticket, used_at
+    one row per ticket of a paid order: seat, order, buyer email (from the order), ticket,
+    used_at; cells are escaped against CSV formula injection
 """
 
 from __future__ import annotations
@@ -18,7 +19,6 @@ import json
 import os
 import time
 import uuid
-from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
@@ -104,50 +104,39 @@ def check_in(event_id: uuid.UUID, body: CheckIn, org: Organiser, db: DB):
     return _out(200, result="admitted", seat=label, ticket_id=str(tid), used_at=used.isoformat())
 
 
-@lru_cache(maxsize=1)
-def _cognito():
-    import boto3
-
-    return boto3.client("cognito-idp", region_name=os.getenv("AWS_REGION", "ap-south-1"))
-
-
-def buyer_emails(subs: set[str]) -> dict[str, str]:
-    """Cognito sub -> email (one ListUsers call per buyer; fine for an export)."""
-    pool = os.getenv("COGNITO_USER_POOL_ID")
-    if not pool or not subs:
-        return {}
-    out = {}
-    for sub in subs:
-        users = _cognito().list_users(UserPoolId=pool, Filter=f'sub = "{sub}"', Limit=1)["Users"]
-        for u in users:
-            out[sub] = next((a["Value"] for a in u["Attributes"] if a["Name"] == "email"), "")
-    return out
+def csv_safe(value) -> str:
+    """Stop CSV/formula injection: a cell starting with = + - @ (or tab / CR) is opened as a
+    formula by Excel and Sheets, so prefix it with ' (OWASP CSV injection guidance)."""
+    text_value = "" if value is None else str(value)
+    if text_value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + text_value
+    return text_value
 
 
 @router.get("/events/{event_id}/attendees.csv", response_class=Response)
 def attendees(event_id: uuid.UUID, org: Organiser, db: DB):
     event = _own_event(db, org, event_id)
     rows = db.execute(
-        select(Seat.label, Order.id, Order.buyer_id, Order.paid_at, Ticket.id, Ticket.used_at)
+        select(Seat.label, Order.id, Order.buyer_email, Order.paid_at, Ticket.id, Ticket.used_at)
         .join(Ticket, Ticket.seat_id == Seat.id)
         .join(Order, Order.id == Ticket.order_id)
         .where(Ticket.event_id == event.id, Order.status == OrderStatus.PAID)
         .order_by(Seat.label)
     ).all()
-    emails = buyer_emails({r[2] for r in rows})
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["seat", "order_id", "buyer_email", "paid_at", "ticket_id", "checked_in_at"])
-    for label, oid, sub, paid_at, tid, used_at in rows:
+    for label, oid, email, paid_at, tid, used_at in rows:
         w.writerow(
-            [
+            csv_safe(v)
+            for v in (
                 label,
                 oid,
-                emails.get(sub, ""),
+                email,
                 paid_at.isoformat() if paid_at else "",
                 tid,
                 used_at.isoformat() if used_at else "",
-            ]
+            )
         )
     name = f"attendees-{str(event.id)[:8]}.csv"
     return Response(

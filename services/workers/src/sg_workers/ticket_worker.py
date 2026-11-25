@@ -23,7 +23,8 @@ commits can send a second copy once the claim expires (2 minutes). Replays and d
 (the common case) never resend.
 
 Sandbox: SES only delivers to verified addresses, so the config parameter may set
-`sandbox_recipient`; otherwise the buyer's Cognito email is used.
+`sandbox_recipient`; otherwise the email stored on the order
+(Cognito only for older orders without one).
 """
 
 from __future__ import annotations
@@ -188,7 +189,8 @@ def mime(
 def _claim(conn, order_id: str) -> dict | None:
     """Lock the order and decide. Returns the order to send, None to ack, or raises."""
     rows = conn.run(
-        "SELECT o.id::text, o.event_id::text, o.status::text, o.paid_at, o.buyer_id, "
+        "SELECT o.id::text, o.event_id::text, o.status::text, o.paid_at, "
+        "o.buyer_id, o.buyer_email, "
         "o.ticket_email_sent_at, o.ticket_email_claimed_at, "
         "now() - o.ticket_email_claimed_at < make_interval(secs => :claim), "
         "e.name, e.venue, e.starts_at "
@@ -199,7 +201,20 @@ def _claim(conn, order_id: str) -> dict | None:
     )
     if not rows:
         raise LookupError(f"order {order_id} not found")
-    oid, ev, status, paid_at, buyer, sent_at, claimed_at, fresh_claim, name, venue, starts = rows[0]
+    (
+        oid,
+        ev,
+        status,
+        paid_at,
+        buyer,
+        email,
+        sent_at,
+        claimed_at,
+        fresh_claim,
+        name,
+        venue,
+        starts,
+    ) = rows[0]
     if status != "paid":
         return {"skip": f"order is {status}"}
     if sent_at is not None:
@@ -225,6 +240,7 @@ def _claim(conn, order_id: str) -> dict | None:
         "event_id": ev,
         "paid_at": paid_at,
         "buyer_id": buyer,
+        "buyer_email": email,
         "event_name": name,
         "venue": venue,
         "starts_at": starts,
@@ -270,7 +286,12 @@ def issue(order_id: str) -> str:
         )
 
         cfg = email_config()
-        to = cfg.get("sandbox_recipient") or buyer_email(order["buyer_id"])
+        # Stored on the order at creation; Cognito only for orders made before that (Task 4 fix).
+        to = (
+            cfg.get("sandbox_recipient")
+            or order.get("buyer_email")
+            or buyer_email(order["buyer_id"])
+        )
         if not to:
             raise LookupError(f"no email address for buyer of order {order_id}")
         note = "(SES sandbox: sent to the test address.)" if cfg.get("sandbox_recipient") else ""

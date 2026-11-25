@@ -120,3 +120,12 @@ variable "extra_routes" {
   }))
   default = {}
 }
+
+variable "ssr_path_patterns" {
+  description = <<-EOT
+    CloudFront path patterns of server-rendered pages behind the ALB that use a session
+    cookie (e.g. the organiser dashboard). Caching disabled, cookies and headers forwarded.
+  EOT
+  type        = list(string)
+  default     = []
+}

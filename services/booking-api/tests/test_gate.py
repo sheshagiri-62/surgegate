@@ -42,7 +42,7 @@ def paid(flow, monkeypatch):  # noqa: F811
             "seats"
         ]
     ]
-    b = buyer()
+    b = buyer(email="fan@example.test")  # email claim -> stored on the order
     h = hold(flow.api, ev["id"], seats[:2], b).json()
     o = order(flow.api, ev["id"], b, h["hold_id"]).json()
     post(flow, webhook_body(o))
@@ -134,7 +134,6 @@ def test_another_organiser_cannot_check_in(paid):
 
 def test_attendee_export(paid, monkeypatch):
     f, org, ev, o, tokens = paid
-    monkeypatch.setattr(gate, "buyer_emails", lambda subs: {s: "fan@example.test" for s in subs})
     scan(f.api, org, ev, tokens[0])
     r = f.api.get(f"/org/events/{ev}/attendees.csv", headers=org)
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
@@ -144,3 +143,32 @@ def test_attendee_export(paid, monkeypatch):
     assert [x[0] for x in rows] == ["A-1-1", "A-1-2"]
     assert all(x[1] == o["order_id"] and x[2] == "fan@example.test" for x in rows)
     assert rows[0][5] and not rows[1][5]  # A-1-1 checked in, A-1-2 not yet
+
+
+def test_export_escapes_formula_cells(paid):
+    """CSV injection: a buyer email like =HYPERLINK(...) must not run as a formula."""
+    f, org, ev, o, _ = paid
+    with f.engine.begin() as c:
+        c.execute(
+            text("UPDATE orders SET buyer_email = :e WHERE id = :o"),
+            {"e": '=HYPERLINK("http://evil.test","x")@example.test', "o": o["order_id"]},
+        )
+    r = f.api.get(f"/org/events/{ev}/attendees.csv", headers=org)
+    assert "'=HYPERLINK" in r.text and ",=HYPERLINK" not in r.text
+
+
+@pytest.mark.parametrize(
+    ("raw", "out"),
+    [
+        ("=1+1", "'=1+1"),
+        ("+91", "'+91"),
+        ("-2", "'-2"),
+        ("@SUM(A1)", "'@SUM(A1)"),
+        ("\tx", "'\tx"),
+        ("a@b.test", "a@b.test"),
+        ("", ""),
+        (None, ""),
+    ],
+)
+def test_csv_safe(raw, out):
+    assert gate.csv_safe(raw) == out

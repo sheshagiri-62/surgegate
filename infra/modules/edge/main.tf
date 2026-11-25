@@ -434,6 +434,31 @@ resource "aws_cloudfront_distribution" "api" {
     }
   }
 
+  # Server-rendered pages with a session cookie (organiser dashboard): never cached, every
+  # viewer header / cookie / query string forwarded. Explicit, so they keep working when the
+  # default behaviour becomes the static buyer site.
+  dynamic "ordered_cache_behavior" {
+    for_each = toset(var.ssr_path_patterns)
+    content {
+      path_pattern             = ordered_cache_behavior.value
+      target_origin_id         = "api"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD"]
+      cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+      compress                 = true
+
+      dynamic "function_association" {
+        for_each = var.origin_enabled ? [] : [1]
+        content {
+          event_type   = "viewer-request"
+          function_arn = aws_cloudfront_function.origin_down.arn
+        }
+      }
+    }
+  }
+
   default_cache_behavior {
     target_origin_id         = "api"
     viewer_protocol_policy   = "redirect-to-https"
