@@ -55,10 +55,12 @@ redis:
   host: master.surgegate-dev-redis.cr9kvu.aps1.cache.amazonaws.com
   authSecretId: surgegate/dev/data/redis-auth
 
-# Browser origins allowed to call the API (dev: buyer app on the laptop, API via port-forward).
+# Browser origins allowed to call the API. The CloudFront site is same-origin (no CORS needed);
+# localhost:3000 is the buyer app on the laptop with the API via port-forward.
 cors:
   allowOrigins:
     - http://localhost:3000
+    - https://d1t9vww2xtyvsz.cloudfront.net
 
 # Waiting-room state (organiser controls write the queue's META item).
 queue:
@@ -84,9 +86,9 @@ payments:
   mock:
     apiUrl: http://mock-pay.mock-pay.svc.cluster.local # /v1/orders, cluster only
     checkoutBase: https://d1t9vww2xtyvsz.cloudfront.net # /mockpay/checkout/* via CloudFront
-  # Where the checkout may send buyers back. Add the buyer CloudFront origin when the buyer
-  # site is deployed there.
+  # Where the checkout may send buyers back: the buyer site on CloudFront, and the laptop.
   returnOrigins:
+    - https://d1t9vww2xtyvsz.cloudfront.net
     - http://localhost:3000
   # Webhook endpoint -> this SQS queue -> order worker (Day 7 Task 4).
   queueUrl: https://sqs.ap-south-1.amazonaws.com/968077439619/surgegate-dev-payments

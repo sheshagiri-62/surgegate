@@ -38,7 +38,7 @@ secretId: surgegate/dev/data/razorpay
 # Where webhooks go: the public edge, the same path real Razorpay would call.
 webhookUrl: https://d1t9vww2xtyvsz.cloudfront.net/webhooks/razorpay
 
-# Where the checkout may send buyers back. Add the buyer CloudFront origin when the buyer site
-# is deployed there.
+# Where the checkout may send buyers back: the buyer site on CloudFront, and the laptop.
 callbackAllowOrigins:
+  - https://d1t9vww2xtyvsz.cloudfront.net
   - http://localhost:3000
