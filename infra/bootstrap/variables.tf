@@ -54,3 +54,10 @@ variable "site_distribution_ids" {
   type        = list(string)
   default     = ["E8H8TXUDV1OG7"] # dev
 }
+
+variable "budget_alert_emails" {
+  description = "Budget alert recipients. ONLY in the uncommitted budget.auto.tfvars (never in Git)."
+  type        = list(string)
+  default     = []
+  sensitive   = true
+}
