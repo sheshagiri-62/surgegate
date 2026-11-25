@@ -1,0 +1,73 @@
+{{- if .Values.rollout.enabled }}
+# Canary health (Day 10 Task 2): the booking-api target group's 5xx rate and p95, from
+# CloudWatch, every minute for 2 minutes. 2 failures (or 2 errors) abort the rollout.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ .Release.Name }}-health
+  labels:
+    {{- include "booking-api.labels" . | nindent 4 }}
+spec:
+  metrics:
+    - name: error-rate-pct
+      interval: {{ .Values.rollout.analysis.interval }}
+      count: {{ .Values.rollout.analysis.count }}
+      failureLimit: 1 # a second bad minute aborts
+      consecutiveErrorLimit: 2
+      successCondition: "all(result[0].Values, {# <= {{ .Values.rollout.analysis.max5xxPct }}})"
+      provider:
+        cloudWatch:
+          interval: 2m
+          metricDataQueries:
+            - id: rate
+              expression: "IF(requests >= 10, 100 * errors / requests, 0)"
+              label: 5xx %
+            - id: errors
+              returnData: false
+              metricStat:
+                metric:
+                  namespace: AWS/ApplicationELB
+                  metricName: HTTPCode_Target_5XX_Count
+                  dimensions:
+                    - name: LoadBalancer
+                      value: {{ .Values.rollout.analysis.loadBalancer | quote }}
+                    - name: TargetGroup
+                      value: {{ .Values.rollout.analysis.targetGroup | quote }}
+                period: 60
+                stat: Sum
+            - id: requests
+              returnData: false
+              metricStat:
+                metric:
+                  namespace: AWS/ApplicationELB
+                  metricName: RequestCount
+                  dimensions:
+                    - name: LoadBalancer
+                      value: {{ .Values.rollout.analysis.loadBalancer | quote }}
+                    - name: TargetGroup
+                      value: {{ .Values.rollout.analysis.targetGroup | quote }}
+                period: 60
+                stat: Sum
+    - name: p95-seconds
+      interval: {{ .Values.rollout.analysis.interval }}
+      count: {{ .Values.rollout.analysis.count }}
+      failureLimit: 1
+      consecutiveErrorLimit: 2
+      successCondition: "all(result[0].Values, {# <= {{ .Values.rollout.analysis.maxP95Seconds }}})"
+      provider:
+        cloudWatch:
+          interval: 2m
+          metricDataQueries:
+            - id: p95
+              metricStat:
+                metric:
+                  namespace: AWS/ApplicationELB
+                  metricName: TargetResponseTime
+                  dimensions:
+                    - name: LoadBalancer
+                      value: {{ .Values.rollout.analysis.loadBalancer | quote }}
+                    - name: TargetGroup
+                      value: {{ .Values.rollout.analysis.targetGroup | quote }}
+                period: 60
+                stat: p95
+{{- end }}

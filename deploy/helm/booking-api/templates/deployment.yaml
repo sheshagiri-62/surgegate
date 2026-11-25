@@ -48,6 +48,10 @@ spec:
             {{- include "booking-api.corsEnv" . | nindent 12 }}
             {{- include "booking-api.paymentsEnv" . | nindent 12 }}
             {{- include "booking-api.otelEnv" (dict "ctx" . "svc" "booking-api") | nindent 12 }}
+            {{- if ne (toString .Values.faultInjection.errorRate) "0" }}
+            - name: FAULT_ERROR_RATE # broken-release test ONLY (Day 10 Task 2)
+              value: {{ .Values.faultInjection.errorRate | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}

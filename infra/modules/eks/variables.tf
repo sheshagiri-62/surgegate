@@ -160,3 +160,15 @@ variable "container_insights_metrics" {
   type        = bool
   default     = true
 }
+
+variable "enable_argo_rollouts" {
+  description = "Argo Rollouts controller (canary releases with automatic rollback, Day 10 Task 2)."
+  type        = bool
+  default     = false
+}
+
+variable "argo_rollouts_chart_version" {
+  description = "argo-rollouts Helm chart (argo-helm); 2.43.12 = Argo Rollouts v1.10.2."
+  type        = string
+  default     = "2.43.12"
+}

@@ -1,0 +1,36 @@
+{{- if .Values.rollout.enabled }}
+# Canary releases (Day 10 Task 2). The Rollout takes over the pods of the Deployment below
+# (workloadRef: same pod template, the Deployment is scaled to 0 once the Rollout is ready), so
+# there is no gap when it is switched on. Traffic is split by pod count: CloudFront -> ALB -> one
+# target group -> stable + canary pods.
+#   25% -> analysis (2 min) -> 50% -> analysis (2 min) -> 100%
+# A failed analysis (5xx or p95 over the SLO) aborts the rollout: the canary is scaled away and
+# the stable version keeps all traffic, with nobody pressing a button.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "booking-api.labels" . | nindent 4 }}
+spec:
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      {{- include "booking-api.selector" . | nindent 6 }}
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}
+    scaleDown: progressively
+  strategy:
+    canary:
+      maxUnavailable: 0
+      maxSurge: 1
+      steps:
+        {{- range .Values.rollout.steps }}
+        - setWeight: {{ . }}
+        - analysis:
+            templates:
+              - templateName: {{ $.Release.Name }}-health
+        {{- end }}
+{{- end }}
