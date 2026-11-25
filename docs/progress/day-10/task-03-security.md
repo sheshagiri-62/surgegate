@@ -149,13 +149,13 @@ high/critical findings, and the rest listed with reasons.
 | Secret | Rotation | Note |
 | --- | --- | --- |
 | `rds!db-…` (PostgreSQL master) | **on, every 7 days** (RDS-managed) | The app reads it at connect time, so rotation needs no restart |
-| `surgegate/dev/queue/token-key`, `queue/pass-key`, `data/ticket-key`, `events/live-key` | off | HMAC signing keys. Tokens carry a `kid`, and verifiers accept a list of keys, so a rotation is "add the new key, switch signing, drop the old one after the TTL". Manual by design for now |
+| `surgegate/dev/queue/token-key`, `queue/pass-key`, `data/ticket-key`, `events/live-key` | off | HMAC signing keys. Every token carries a `kid`, but **only the ticket verifier accepts several keys** (`{kid: key}`). The booking-pass, queue-token and live-token verifiers hold **one** key and refuse any other `kid`, so rotating one today would invalidate live tokens (passes 15 min, queue tokens 6 h, live tokens 60 s). A safe rotation first needs "accept old + new" in those three verifiers (small change, future work) |
 | `surgegate/dev/edge/origin-verify` | off | Shared CloudFront/ALB/queue header; rotate by Terraform (new `random_password`), the same apply updates all three |
 | `surgegate/dev/data/redis-auth`, `data/razorpay` | off | Terraform-generated; mock provider (ADR 004) |
 | `surgegate/dev/test-users` | off | Dev-only test accounts |
 
-Not done: automatic rotation Lambdas for the signing keys, written down as future work (the
-`kid` design already allows it).
+Not done (future work): multi-key verification in the three single-key verifiers, then
+scheduled rotation of the signing keys.
 
 ## 6. Cost impact
 
