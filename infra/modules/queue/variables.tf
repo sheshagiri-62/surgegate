@@ -117,3 +117,21 @@ variable "origin_verify_required" {
   type        = bool
   default     = false
 }
+
+variable "booking_alb_arn_suffix" {
+  description = "Booking API ALB ARN suffix (backpressure reads its metrics); null while down."
+  type        = string
+  default     = null
+}
+
+variable "booking_target_group_arn_suffix" {
+  description = "Booking API target group ARN suffix; null while down."
+  type        = string
+  default     = null
+}
+
+variable "backpressure_slow_p95" {
+  description = "Booking p95 (seconds) above which backpressure lowers the admission rate. 0.5 = the SLO; a tiny value only for a live test."
+  type        = number
+  default     = 0.5
+}

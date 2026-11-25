@@ -1,0 +1,98 @@
+{{- if and .Values.autoscaling.enabled .Values.prescale.enabled }}
+# Pre-scaler (Day 10 Task 1): every minute, HPA minReplicas = prescale.minReplicas while a sale
+# starts within 15 minutes or started less than an hour ago, else autoscaling.minReplicas.
+# Its own service account: Pod Identity for the database (read events), and RBAC to get/patch
+# ONLY the booking-api HPA.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-prescaler
+  labels:
+    {{- include "booking-api.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-prescaler
+rules:
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    resourceNames: ["{{ .Release.Name }}"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-prescaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-prescaler
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-prescaler
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-prescaler
+  labels:
+    {{- include "booking-api.labels" . | nindent 4 }}
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 50
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: prescaler
+        spec:
+          serviceAccountName: {{ .Release.Name }}-prescaler
+          automountServiceAccountToken: true # needs the Kubernetes API (patch the HPA)
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: prescaler
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["python", "-m", "app.prescale"]
+              env:
+                {{- include "booking-api.dbEnv" . | nindent 16 }}
+                - name: POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: PRESCALE_HPA
+                  value: {{ .Release.Name | quote }}
+                - name: BASE_MIN_REPLICAS
+                  value: {{ .Values.autoscaling.minReplicas | quote }}
+                - name: PRESCALE_MIN_REPLICAS
+                  value: {{ .Values.prescale.minReplicas | quote }}
+                - name: PRESCALE_LEAD_MINUTES
+                  value: {{ .Values.prescale.leadMinutes | quote }}
+                - name: PRESCALE_HOLD_MINUTES
+                  value: {{ .Values.prescale.holdMinutes | quote }}
+                - name: OTEL_SERVICE_NAME
+                  value: prescaler
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 64Mi
+                limits:
+                  memory: 160Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+{{- end }}

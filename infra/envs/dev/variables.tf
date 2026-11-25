@@ -114,3 +114,9 @@ variable "queue_origin_verify_required" {
   type        = bool
   default     = true # on since 25 Nov (buyer site + k6 use CloudFront)
 }
+
+variable "backpressure_slow_p95" {
+  description = "Backpressure threshold (s). Keep 0.5 (the SLO); -var=backpressure_slow_p95=0.001 only for a live test window."
+  type        = number
+  default     = 0.5
+}

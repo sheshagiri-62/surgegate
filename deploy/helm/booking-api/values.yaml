@@ -5,7 +5,21 @@ image:
   tag: "aea688fcc1d9" # set by build-deploy
   pullPolicy: IfNotPresent
 
-replicaCount: 2
+replicaCount: 2 # used only when autoscaling is off
+
+# HPA on CPU (Day 10 Task 1); needs metrics-server (EKS add-on, infra/modules/eks).
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4 # dev: 2 t3.medium nodes (demo: more, Karpenter adds nodes)
+  targetCPU: 60
+
+# Pre-scaling 15 minutes before a sale (CronJob, app/prescale.py).
+prescale:
+  enabled: true
+  minReplicas: 3 # dev; demo sets more
+  leadMinutes: 15
+  holdMinutes: 60
 
 containerPort: 8000
 
