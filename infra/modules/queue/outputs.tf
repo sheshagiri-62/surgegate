@@ -27,3 +27,8 @@ output "pass_key_secret_name" {
   description = "Name of the booking-pass key secret."
   value       = aws_secretsmanager_secret.pass_key.name
 }
+
+output "api_id" {
+  description = "HTTP API id (CloudWatch ApiId dimension)."
+  value       = aws_apigatewayv2_api.this.id
+}

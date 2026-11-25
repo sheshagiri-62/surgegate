@@ -136,3 +136,21 @@ variable "karpenter_instance_types" {
   type        = list(string)
   default     = ["t3.medium", "t3a.medium", "t3.large", "t3a.large"]
 }
+
+variable "enable_container_insights" {
+  description = "EKS add-on amazon-cloudwatch-observability: Container Insights (enhanced), Fluent Bit pod logs, OTLP traces -> X-Ray."
+  type        = bool
+  default     = false
+}
+
+variable "cloudwatch_addon_version" {
+  description = "amazon-cloudwatch-observability add-on version (default for Kubernetes 1.37 on 25 Nov 2026)."
+  type        = string
+  default     = "v8.0.1-eksbuild.1"
+}
+
+variable "container_log_retention_days" {
+  description = "Retention of the Container Insights log groups (application, dataplane, host, performance)."
+  type        = number
+  default     = 7
+}

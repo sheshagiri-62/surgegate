@@ -39,3 +39,13 @@ output "distribution_id" {
   description = "CloudFront distribution ID (cache invalidation after a site deploy)."
   value       = var.cloudfront_enabled ? aws_cloudfront_distribution.api[0].id : null
 }
+
+output "alb_arn_suffix" {
+  description = "ALB ARN suffix (CloudWatch LoadBalancer dimension); null while dev is down."
+  value       = try(aws_lb.this[0].arn_suffix, null)
+}
+
+output "target_group_arn_suffix" {
+  description = "booking-api target group ARN suffix (CloudWatch TargetGroup dimension); null while dev is down."
+  value       = try(aws_lb_target_group.api[0].arn_suffix, null)
+}

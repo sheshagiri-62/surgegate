@@ -10,10 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import AnyUser
 from app.routes import buyer, gate, orders, organiser, tickets, webhooks  # noqa: F401 (gate adds /org routes)
+from app.telemetry import setup_logging, setup_tracing
 
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 
 app = FastAPI(title="SurgeGate booking API", version=APP_VERSION)
+setup_logging()  # JSON lines (Day 9 Task 3)
+setup_tracing(app)  # OpenTelemetry -> X-Ray, only when OTEL_EXPORTER_OTLP_ENDPOINT is set
 # CORS: only the origins listed in CORS_ALLOW_ORIGINS (dev: the buyer app on localhost:3000).
 # Behind CloudFront the site and API share one origin and the list can be empty.
 _origins = [o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]

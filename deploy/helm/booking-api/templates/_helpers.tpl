@@ -77,3 +77,17 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: TICKET_KEY_SECRET_ID
   value: {{ .Values.tickets.keySecretId | quote }}
 {{- end -}}
+
+{{/* OpenTelemetry -> CloudWatch agent (OTLP/HTTP) -> X-Ray (Day 9 Task 3). $svc = service name. */}}
+{{- define "booking-api.otelEnv" -}}
+{{- if .ctx.Values.tracing.enabled }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ .ctx.Values.tracing.otlpEndpoint | quote }}
+- name: OTEL_TRACES_SAMPLER_ARG
+  value: {{ .ctx.Values.tracing.sampleRatio | quote }}
+{{- end }}
+- name: OTEL_SERVICE_NAME
+  value: {{ .svc | quote }}
+- name: ENVIRONMENT
+  value: {{ .ctx.Values.environment | quote }}
+{{- end -}}

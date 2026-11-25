@@ -86,6 +86,9 @@ module "eks" {
 
   lbc_replicas = 1
 
+  # Container Insights + pod logs + OTLP -> X-Ray (Day 9 Task 3); per-observation billing.
+  enable_container_insights = true
+
   gitops_repo_url = "https://github.com/sheshagiri-62/surgegate.git"
   gitops_path     = "deploy/argocd"
   gitops_revision = "main"
@@ -293,4 +296,22 @@ module "async" {
   ses_sender            = var.ses_sender            # uncommitted alerts.auto.tfvars
   ses_sandbox_recipient = var.ses_sandbox_recipient # uncommitted alerts.auto.tfvars
   sweep_enabled         = var.enable_data
+}
+
+# ---------------------------------------------------------------------------
+# Observability (Day 9 Task 3): the "sale room" CloudWatch dashboard (free: first 3 dashboards).
+# ---------------------------------------------------------------------------
+module "observability" {
+  source = "../../modules/observability"
+
+  name                    = local.name
+  region                  = var.region
+  cluster_name            = local.name
+  distribution_id         = coalesce(module.edge.distribution_id, "none")
+  web_acl_name            = local.name
+  queue_api_id            = module.queue.api_id
+  queue_table             = module.data.queue_table_name
+  stream_name             = module.events.stream_name
+  alb_arn_suffix          = module.edge.alb_arn_suffix
+  target_group_arn_suffix = module.edge.target_group_arn_suffix
 }

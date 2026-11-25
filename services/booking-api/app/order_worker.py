@@ -250,8 +250,10 @@ def run() -> None:  # pragma: no cover - exercised live in the cluster
     from app import payment_queue
     from app.db import _session_factory
     from app.payments import get_provider
+    from app.telemetry import setup_logging, setup_tracing
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    setup_logging()  # JSON lines, like the API
+    setup_tracing()  # boto3 / SQLAlchemy spans when OTEL_EXPORTER_OTLP_ENDPOINT is set
     stopping = []
     signal.signal(signal.SIGTERM, lambda *_: stopping.append(1))
     factory, provider, sqs, url = (
