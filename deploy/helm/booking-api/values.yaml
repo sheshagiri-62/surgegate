@@ -155,4 +155,4 @@ rollout:
 
 # Broken-release test ONLY: a fraction of requests answer 500 (/healthz stays green).
 faultInjection:
-  errorRate: "0"
+  errorRate: "0.5" # BROKEN-RELEASE TEST (Day 10 Task 2): must be aborted by the canary analysis
