@@ -49,3 +49,20 @@ variable "target_group_arn_suffix" {
   type        = string
   default     = null
 }
+
+variable "alerts_topic_arn" {
+  description = "SNS topic every alarm notifies (email subscription in the async module)."
+  type        = string
+}
+
+variable "runbook_base_url" {
+  description = "Where the runbooks are read (alarm descriptions link to docs/runbooks/*.md)."
+  type        = string
+  default     = "https://github.com/sheshagiri-62/surgegate/blob/main"
+}
+
+variable "rds_connections_threshold" {
+  description = "Alarm above this many PostgreSQL connections."
+  type        = number
+  default     = 70
+}

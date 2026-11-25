@@ -314,4 +314,7 @@ module "observability" {
   stream_name             = module.events.stream_name
   alb_arn_suffix          = module.edge.alb_arn_suffix
   target_group_arn_suffix = module.edge.target_group_arn_suffix
+
+  # SLO alarms (Day 9 Task 4) -> the existing alerts topic (email)
+  alerts_topic_arn = module.async.alerts_topic_arn
 }
