@@ -112,5 +112,5 @@ variable "waf_load_test_cidrs" {
 variable "queue_origin_verify_required" {
   description = "Queue Lambdas refuse requests without CloudFront's origin header (straight to execute-api)."
   type        = bool
-  default     = false
+  default     = true # on since 25 Nov (buyer site + k6 use CloudFront)
 }

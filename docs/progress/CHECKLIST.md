@@ -117,7 +117,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 **Day 9 — Fri 27 Nov**
 
 - [ ] 1. Build the `demo` environment: two NAT gateways, Multi-AZ RDS, Redis replica, Karpenter, 2+ nodes — **code + plan done ([task-01-demo-env](day-09/task-01-demo-env.md)); apply on Day 10 for the load tests (your call)**
-- [ ] 2. WAF on CloudFront and API Gateway: rate rules, managed bot rules on `/queue/*`, challenge before join
+- [x] 2. WAF on CloudFront and API Gateway: rate rules, managed bot rules on `/queue/*`, challenge before join ([task-02-waf](day-09/task-02-waf.md); burst → 429, curl join → challenged, webhooks never; queue Lambdas refuse requests not through CloudFront; your Chrome join check open)
   - **Must exclude `/webhooks/*`** from rate/bot/challenge rules (server-to-server payment webhooks; auth = HMAC signature). See [task-03-orders-checkout](day-07/task-03-orders-checkout.md).
 - [ ] 3. Observability: structured logs, CloudWatch "sale room" dashboards, Container Insights, X-Ray through OpenTelemetry
 - [ ] 4. SLO alarms; SNS email alerts; three runbooks (queue backlog, booking latency, payment backlog)
@@ -128,6 +128,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [ ] 2. Argo Rollouts canary for the booking API with automatic rollback on error rate
 - [ ] 3. Security: GuardDuty, Security Hub, CloudTrail; ECR scan and Trivy gates; secrets rotation check
 - [ ] 4. k6 runs at 10,000 then 50,000 virtual users; record join success, booking p95, oversold seats, cost
+  - **WAF (Day 9):** run k6 against the **CloudFront URL** (`QUEUE_API=https://<distribution>`; `execute-api` answers 403) with the load-generator ALLOW rule on: `-var=enable_waf=true -var=waf_load_test_enabled=true -var='waf_load_test_cidrs=["<generator IP>/32"]'`, and switch it off right after the run.
   - **Kinesis at 50k users (note from Day 8):** one provisioned shard takes 1,000 records/s (1 MB/s) for writes, so it will throttle (`ProvisionedThroughputExceededException`). For the demo environment, use **on-demand** mode or enough shards (`shard_count` in `infra/envs/demo`), and producers must handle throttling: retry with backoff in the background and never block or fail the request path (today's producers are best-effort and log on failure).
 - [ ] 5. Base image upgrade for booking-api (clear the 3 HIGH ECR findings) and a build-deploy gate that fails on HIGH (added 20 Nov)
 
