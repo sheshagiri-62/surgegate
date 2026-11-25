@@ -18,12 +18,20 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: booking
+  # The pre-scaler CronJob owns the HPA's minReplicas (Day 10 Task 1): don't heal it back.
+  ignoreDifferences:
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      name: booking-api
+      jsonPointers:
+        - /spec/minReplicas
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
     retry: # e.g. the migration Job fails while RDS is still restoring after make up
       limit: 10
       backoff:

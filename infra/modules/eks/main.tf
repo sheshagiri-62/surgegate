@@ -61,6 +61,8 @@ module "eks" {
     eks-pod-identity-agent = { most_recent = true, before_compute = true }
     kube-proxy             = { most_recent = true }
     coredns                = { most_recent = true }
+    # CPU/memory metrics for the HorizontalPodAutoscaler (Day 10 Task 1)
+    metrics-server = { most_recent = true }
   }
 
   eks_managed_node_groups = {

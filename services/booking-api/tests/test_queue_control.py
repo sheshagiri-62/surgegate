@@ -28,6 +28,7 @@ def test_opening_before_the_sale_gives_a_pre_queue(api, queue_table):
     }
     item = queue_table.get_item(Key={"PK": f"EVENT#{ev['id']}", "SK": "META"})["Item"]
     assert item["active"] == "1"  # the starter and the valve will find it
+    assert item["max_admission_rate"] == 125  # backpressure's ceiling (Day 10)
 
 
 def test_opening_after_the_sale_started_is_open_at_once(api):
@@ -85,3 +86,23 @@ def test_validation_and_roles(api):
     assert api.patch(url(ev["id"]), json={"action": "fly"}, headers=org).status_code == 422
     assert api.get(url(ev["id"]), headers=org).status_code == 404  # not opened yet
     assert api.put(url(ev["id"]), json={"admission_rate": 9}, headers=buyer()).status_code == 403
+
+
+def test_organiser_rate_is_the_backpressure_ceiling(api, queue_table):
+    org = organiser()
+    now = datetime.now(UTC)
+    ev = create(
+        api,
+        org,
+        sale_starts_at=(now - timedelta(minutes=1)).isoformat(),
+        starts_at=(now + timedelta(days=1)).isoformat(),
+    )
+    api.put(url(ev["id"]), json={"admission_rate": 250}, headers=org)
+    key = {"PK": f"EVENT#{ev['id']}", "SK": "META"}
+    # backpressure lowered the effective rate; the organiser then picks a new one
+    queue_table.update_item(
+        Key=key, UpdateExpression="SET admission_rate = :r", ExpressionAttributeValues={":r": 120}
+    )
+    api.patch(url(ev["id"]), json={"admission_rate": 180}, headers=org)
+    item = queue_table.get_item(Key=key)["Item"]
+    assert (item["admission_rate"], item["max_admission_rate"]) == (180, 180)

@@ -1,0 +1,29 @@
+{{- if .Values.autoscaling.enabled }}
+# CPU-based autoscaling (Day 10 Task 1). The pre-scaler CronJob raises minReplicas 15 minutes
+# before a sale and lowers it after; Argo CD ignores that field (deploy/argocd/booking-api.yaml).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "booking-api.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPU }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0 # a sale spike: add pods at once
+    scaleDown:
+      stabilizationWindowSeconds: 300 # don't drop pods between waves
+{{- end }}

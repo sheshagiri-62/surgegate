@@ -72,6 +72,8 @@ def open_queue(event_id: uuid.UUID, sale_starts_at: datetime, admission_rate: in
         "status": status,
         "sale_starts_at": sale_starts_at.astimezone(UTC).isoformat(),
         "admission_rate": admission_rate,
+        # The organiser's rate: backpressure (Day 10) may lower admission_rate, never above this.
+        "max_admission_rate": admission_rate,
         "next_position": 0,
         "serving_up_to": 0,
         "active": "1",  # listed in the active-queues index (starter, valve)
@@ -103,6 +105,7 @@ def change(event_id: uuid.UUID, action: str | None, admission_rate: int | None) 
         names["#s"] = "status"
     if admission_rate is not None:
         sets.append("admission_rate = :rate")
+        sets.append("max_admission_rate = :rate")  # the organiser's choice is the new ceiling
         values[":rate"] = admission_rate
     request = {
         "Key": _key(event_id),

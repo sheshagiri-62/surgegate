@@ -43,11 +43,18 @@ locals {
       timeout = 10
       memory  = 256
     }
+    backpressure = {
+      handler = "sg_queue.backpressure.handler"
+      timeout = 30
+      memory  = 256
+    }
   }
   # Functions run every minute by EventBridge Scheduler.
   scheduled = {
     starter = "Open waiting rooms at sale start (pre-queue shuffle)"
     valve   = "Admission valve: raise serving_up_to by the admission rate"
+    # Day 10 Task 1: admission rate down when booking p95 > 500 ms or 5xx > 1%, back up after
+    backpressure = "Backpressure: adjust the admission rate to the booking API's health"
   }
   # Functions behind API Gateway routes. serving is public: one number, the same for everyone
   # (cacheable at CloudFront); everything else needs a Cognito access token.
@@ -213,6 +220,24 @@ data "aws_iam_policy_document" "fn" {
   }
 
   dynamic "statement" {
+    for_each = each.key == "backpressure" ? [1] : []
+    content {
+      sid       = "AdjustAdmissionRate"
+      actions   = ["dynamodb:Query", "dynamodb:UpdateItem"]
+      resources = [var.table_arn, "${var.table_arn}/index/active-queues"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = each.key == "backpressure" ? [1] : []
+    content {
+      sid       = "ReadBookingApiMetrics" # GetMetricData has no resource-level permissions
+      actions   = ["cloudwatch:GetMetricData"]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
     for_each = each.key == "valve" ? [1] : []
     content {
       sid       = "AdvanceServing"
@@ -262,6 +287,9 @@ resource "aws_lambda_function" "fn" {
       ORIGIN_VERIFY_HEADER   = lower(var.origin_verify_header_name)
       ORIGIN_VERIFY_SECRET   = var.origin_verify_secret
       ORIGIN_VERIFY_REQUIRED = tostring(var.origin_verify_required)
+      # Backpressure reads the booking API's ALB metrics (empty while the environment is down).
+      ALB_ARN_SUFFIX          = coalesce(var.booking_alb_arn_suffix, "")
+      TARGET_GROUP_ARN_SUFFIX = coalesce(var.booking_target_group_arn_suffix, "")
     }
   }
 

@@ -5,7 +5,10 @@ metadata:
   labels:
     {{- include "booking-api.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  # With the HPA on, it owns the replica count (no replicas here, so Argo CD doesn't fight it).
   revisionHistoryLimit: 5
   selector:
     matchLabels:

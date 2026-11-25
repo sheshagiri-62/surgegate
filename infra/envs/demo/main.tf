@@ -232,6 +232,10 @@ module "queue" {
   # Only requests through our CloudFront (and so through WAF) once required (Day 9 Task 2).
   origin_verify_secret   = aws_secretsmanager_secret_version.origin_verify.secret_string
   origin_verify_required = var.queue_origin_verify_required
+
+  # Backpressure (Day 10 Task 1) watches the booking API through its ALB metrics.
+  booking_alb_arn_suffix          = module.edge.alb_arn_suffix
+  booking_target_group_arn_suffix = module.edge.target_group_arn_suffix
 }
 
 # ---------------------------------------------------------------------------
