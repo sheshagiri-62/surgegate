@@ -144,8 +144,10 @@ rollout:
   enabled: true
   steps: [25, 50] # then 100%
   analysis:
+    initialDelay: 3m # ALB metrics arrive ~3 min late
+    window: 5m # each measurement reads the last 5 one-minute datapoints
     interval: 1m
-    count: 2
+    count: 3
     max5xxPct: 2
     maxP95Seconds: 0.5
     loadBalancer: app/surgegate-dev-api/f466ab745985ef97

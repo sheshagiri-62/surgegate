@@ -1,6 +1,11 @@
 {{- if .Values.rollout.enabled }}
-# Canary health (Day 10 Task 2): the booking-api target group's 5xx rate and p95, from
-# CloudWatch, every minute for 2 minutes. 2 failures (or 2 errors) abort the rollout.
+# Canary health (Day 10 Task 2): the booking-api target group's 5xx rate and p95, from CloudWatch.
+#  - ALB metrics reach CloudWatch ~3 minutes late: wait initialDelay, then look at a 5-minute
+#    window of 1-minute datapoints (it always reaches back into canary minutes).
+#  - No data is a FAILURE: every check needs at least one datapoint, and a minute with fewer
+#    than 10 requests counts as 100% errors (no traffic = we can't tell = not safe).
+#  - Errors and inconclusive results fail too (consecutiveErrorLimit 0, no inconclusive band).
+#  - 2 failed measurements (failureLimit 1) abort the rollout.
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -10,17 +15,18 @@ metadata:
 spec:
   metrics:
     - name: error-rate-pct
+      initialDelay: {{ .Values.rollout.analysis.initialDelay }}
       interval: {{ .Values.rollout.analysis.interval }}
       count: {{ .Values.rollout.analysis.count }}
-      failureLimit: 1 # a second bad minute aborts
-      consecutiveErrorLimit: 2
-      successCondition: "all(result[0].Values, {# <= {{ .Values.rollout.analysis.max5xxPct }}})"
+      failureLimit: 1 # a second bad measurement aborts
+      consecutiveErrorLimit: 0 # a provider error fails at once
+      successCondition: "len(result[0].Values) > 0 && all(result[0].Values, {# <= {{ .Values.rollout.analysis.max5xxPct }}})"
       provider:
         cloudWatch:
-          interval: 2m
+          interval: {{ .Values.rollout.analysis.window }}
           metricDataQueries:
             - id: rate
-              expression: "IF(requests >= 10, 100 * errors / requests, 0)"
+              expression: "IF(requests >= 10, 100 * errors / requests, 100)"
               label: 5xx %
             - id: errors
               returnData: false
@@ -49,14 +55,15 @@ spec:
                 period: 60
                 stat: Sum
     - name: p95-seconds
+      initialDelay: {{ .Values.rollout.analysis.initialDelay }}
       interval: {{ .Values.rollout.analysis.interval }}
       count: {{ .Values.rollout.analysis.count }}
       failureLimit: 1
-      consecutiveErrorLimit: 2
-      successCondition: "all(result[0].Values, {# <= {{ .Values.rollout.analysis.maxP95Seconds }}})"
+      consecutiveErrorLimit: 0
+      successCondition: "len(result[0].Values) > 0 && all(result[0].Values, {# <= {{ .Values.rollout.analysis.maxP95Seconds }}})"
       provider:
         cloudWatch:
-          interval: 2m
+          interval: {{ .Values.rollout.analysis.window }}
           metricDataQueries:
             - id: p95
               metricStat:
