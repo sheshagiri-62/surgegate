@@ -122,13 +122,6 @@ data "aws_iam_policy_document" "booking_api" {
     resources = [module.async.ticket_key_secret_arn]
   }
 
-  # Attendee export: buyer email by Cognito sub.
-  statement {
-    sid       = "FindBuyerEmails"
-    actions   = ["cognito-idp:ListUsers"]
-    resources = [module.identity.user_pool_arn]
-  }
-
   # Organiser waiting-room controls (open / pause / resume / rate): the queue's META items.
   statement {
     sid       = "WaitingRoomControls"

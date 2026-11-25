@@ -48,6 +48,7 @@ class Principal:
     sub: str
     groups: frozenset[str] = field(default_factory=frozenset)
     tenant_id: uuid.UUID | None = None
+    email: str | None = None  # verified email (pre-token trigger); None on older tokens
 
     @property
     def is_organiser(self) -> bool:
@@ -120,6 +121,7 @@ def verify_access_token(token: str, settings: AuthSettings) -> Principal:
         sub=claims["sub"],
         groups=frozenset(claims.get("cognito:groups", [])),
         tenant_id=tenant_id,
+        email=claims.get("email") or None,
     )
 
 

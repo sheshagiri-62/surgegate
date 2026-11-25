@@ -21,7 +21,9 @@ class FakeJwks:
         )
 
 
-def make_token(sub: str, groups: list[str], tenant_id: uuid.UUID | None = None) -> str:
+def make_token(
+    sub: str, groups: list[str], tenant_id: uuid.UUID | None = None, email: str | None = None
+) -> str:
     now = int(time.time())
     claims = {
         "sub": sub,
@@ -34,6 +36,8 @@ def make_token(sub: str, groups: list[str], tenant_id: uuid.UUID | None = None) 
     }
     if tenant_id:
         claims["tenant_id"] = str(tenant_id)
+    if email:
+        claims["email"] = email
     return jwt.encode(claims, KEY, algorithm="RS256", headers={"kid": "k1"})
 
 
@@ -46,8 +50,8 @@ def organiser(tenant_id: uuid.UUID | None = None) -> dict[str, str]:
     return bearer(make_token(f"org-{uuid.uuid4()}", ["organiser"], tenant_id or uuid.uuid4()))
 
 
-def buyer(sub: str | None = None) -> dict[str, str]:
-    return bearer(make_token(sub or f"buyer-{uuid.uuid4()}", ["buyer"]))
+def buyer(sub: str | None = None, email: str | None = None) -> dict[str, str]:
+    return bearer(make_token(sub or f"buyer-{uuid.uuid4()}", ["buyer"], email=email))
 
 
 # --- booking passes (what the queue's admit endpoint issues) ------------------------------

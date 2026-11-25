@@ -81,7 +81,14 @@ def create(
 ):
     try:
         order, created = create_order(
-            db, provider, event_id, buyer.sub, body.hold_id, idempotency_key, body.return_url
+            db,
+            provider,
+            event_id,
+            buyer.sub,
+            body.hold_id,
+            idempotency_key,
+            body.return_url,
+            buyer_email=buyer.email,
         )
     except OrderError as err:
         return JSONResponse(status_code=err.status, content={"detail": err.detail, **err.extra})
