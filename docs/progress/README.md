@@ -53,3 +53,5 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-25 | 9 | Task 4 — 14 SLO alarms → SNS email, 3 runbooks; budget counts usage before credits ($15.73 MTD) | [task-04-slo-alarms](day-09/task-04-slo-alarms.md) |
 | 2026-11-25 | 9 | Day 9 summary — Tasks 1 (plan only), 2, 3, 4 done | [day-09/SUMMARY](day-09/SUMMARY.md) |
 | 2026-11-25 | 10 | Task 1 — Pre-scaling (CronJob → HPA min) + backpressure Lambda (admission rate ↓ when booking p95 > 500 ms); both proven live | [task-01-prescale-backpressure](day-10/task-01-prescale-backpressure.md) |
+| 2026-11-25 | 10 | Task 2 — Argo Rollouts canary + CloudWatch analysis; broken release aborted in 5 min 57 s, rollback 9 s; graceful-shutdown fix (0 errors) | [task-02-canary-rollback](day-10/task-02-canary-rollback.md) |
+| 2026-11-25 | 10 | Task 3 — CloudTrail, GuardDuty, Security Hub (FSBP), Config (27 types); Alpine base 0 HIGH/CRITICAL; HIGH gate + exception file | [task-03-security](day-10/task-03-security.md) |
