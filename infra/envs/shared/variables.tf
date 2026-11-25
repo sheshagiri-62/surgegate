@@ -21,3 +21,9 @@ variable "keep_images" {
   type        = number
   default     = 10
 }
+
+variable "enable_security_services" {
+  description = "GuardDuty + Security Hub + Config recorder. `make security-off` sets false (before ~26 Dec 2026, when the free trials end)."
+  type        = bool
+  default     = true
+}

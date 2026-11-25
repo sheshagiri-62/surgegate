@@ -31,8 +31,10 @@ locals {
   join_regex = "^/queue/[^/]+/join$"
 }
 
+# Always present (empty when unused; IP sets are free). If it were created/deleted with the rule,
+# Terraform deletes it before the web ACL drops the rule and WAF refuses
+# (WAFAssociatedItemException, seen 25 Nov). Now switching the rule only changes the ACL.
 resource "aws_wafv2_ip_set" "load_generators" {
-  count              = length(var.load_test_cidrs) > 0 ? 1 : 0
   name               = "${var.name}-load-generators"
   description        = "k6 load generators - Day 10 tests"
   scope              = "CLOUDFRONT"
@@ -78,7 +80,7 @@ resource "aws_wafv2_web_acl" "this" {
       }
       statement {
         ip_set_reference_statement {
-          arn = aws_wafv2_ip_set.load_generators[0].arn
+          arn = aws_wafv2_ip_set.load_generators.arn
         }
       }
       visibility_config {

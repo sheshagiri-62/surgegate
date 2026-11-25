@@ -44,3 +44,13 @@ resource "aws_ecr_lifecycle_policy" "keep_last" {
     }]
   })
 }
+
+# ---------------------------------------------------------------------------
+# Account security (Day 10 Task 3): CloudTrail (free, always on) + GuardDuty, Security Hub
+# (FSBP) and the Config recorder (free trials to ~26 Dec 2026; `make security-off` removes them).
+# ---------------------------------------------------------------------------
+module "security" {
+  source               = "../../modules/security"
+  name                 = var.project
+  enable_paid_services = var.enable_security_services
+}
