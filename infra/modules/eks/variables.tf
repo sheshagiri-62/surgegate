@@ -112,3 +112,27 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_karpenter" {
+  description = "Karpenter for burst capacity (demo). dev keeps only the managed node group."
+  type        = bool
+  default     = false
+}
+
+variable "karpenter_chart_version" {
+  description = "Karpenter Helm chart (oci://public.ecr.aws/karpenter/karpenter)."
+  type        = string
+  default     = "1.15.3"
+}
+
+variable "karpenter_cpu_limit" {
+  description = "Most vCPUs Karpenter may launch in total (keeps the account's EC2 vCPU quota safe)."
+  type        = number
+  default     = 6
+}
+
+variable "karpenter_instance_types" {
+  description = "Instance types Karpenter may launch (small, burstable; Spot preferred when available)."
+  type        = list(string)
+  default     = ["t3.medium", "t3a.medium", "t3.large", "t3a.large"]
+}

@@ -273,7 +273,7 @@ data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
 # edge (blueprint step 5: 5,000 polls a second become a handful of origin calls).
 # PENDING CloudFront verification: created only when cloudfront_enabled.
 resource "aws_cloudfront_cache_policy" "serving" {
-  count       = var.cloudfront_enabled && var.queue_api_domain != "" ? 1 : 0
+  count       = var.cloudfront_enabled && var.queue_api_enabled ? 1 : 0
   name        = "${var.name}-queue-serving-5s"
   comment     = "GET /queue/{event}/serving: shared counter, 5 s"
   min_ttl     = 0
@@ -386,7 +386,7 @@ resource "aws_cloudfront_distribution" "api" {
 
   # Waiting room API (API Gateway), same origin as the site for browsers.
   dynamic "origin" {
-    for_each = var.queue_api_domain != "" ? [1] : []
+    for_each = var.queue_api_enabled ? [1] : []
     content {
       origin_id   = "queue"
       domain_name = var.queue_api_domain
@@ -401,7 +401,7 @@ resource "aws_cloudfront_distribution" "api" {
 
   # Most specific first: the cached counter, then the rest of the queue API (never cached).
   dynamic "ordered_cache_behavior" {
-    for_each = var.queue_api_domain != "" ? [1] : []
+    for_each = var.queue_api_enabled ? [1] : []
     content {
       path_pattern           = "/queue/*/serving"
       target_origin_id       = "queue"
@@ -414,7 +414,7 @@ resource "aws_cloudfront_distribution" "api" {
   }
 
   dynamic "ordered_cache_behavior" {
-    for_each = var.queue_api_domain != "" ? [1] : []
+    for_each = var.queue_api_enabled ? [1] : []
     content {
       path_pattern             = "/queue/*"
       target_origin_id         = "queue"

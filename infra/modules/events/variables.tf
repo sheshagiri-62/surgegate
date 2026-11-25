@@ -9,6 +9,17 @@ variable "stream_enabled" {
   default     = false
 }
 
+variable "stream_mode" {
+  description = "Kinesis capacity mode: PROVISIONED (shard_count) or ON_DEMAND."
+  type        = string
+  default     = "PROVISIONED"
+
+  validation {
+    condition     = contains(["PROVISIONED", "ON_DEMAND"], var.stream_mode)
+    error_message = "stream_mode must be PROVISIONED or ON_DEMAND."
+  }
+}
+
 variable "shard_count" {
   description = "Provisioned shards (1 shard = 1,000 records/s or 1 MB/s of writes)."
   type        = number

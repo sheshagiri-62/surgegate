@@ -138,7 +138,8 @@ module "edge" {
   origin_verify_secret   = aws_secretsmanager_secret_version.origin_verify.secret_string
   domain_name            = var.domain_name
   # /queue/* -> API Gateway, /queue/*/serving cached 5 s (pending CloudFront verification)
-  queue_api_domain = trimprefix(module.queue.api_endpoint, "https://")
+  queue_api_domain  = trimprefix(module.queue.api_endpoint, "https://")
+  queue_api_enabled = true
   # TEMPORARY demo access to the ALB: pass -var=debug_ingress_cidr=<ip>/32, then apply without it.
   debug_ingress_cidr = var.debug_ingress_cidr
   # Buyer site on S3 is the default behaviour; everything served by the ALB is listed here

@@ -116,7 +116,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 **Day 9 — Fri 27 Nov**
 
-- [ ] 1. Build the `demo` environment: two NAT gateways, Multi-AZ RDS, Redis replica, Karpenter, 2+ nodes
+- [ ] 1. Build the `demo` environment: two NAT gateways, Multi-AZ RDS, Redis replica, Karpenter, 2+ nodes — **code + plan done ([task-01-demo-env](day-09/task-01-demo-env.md)); apply on Day 10 for the load tests (your call)**
 - [ ] 2. WAF on CloudFront and API Gateway: rate rules, managed bot rules on `/queue/*`, challenge before join
   - **Must exclude `/webhooks/*`** from rate/bot/challenge rules (server-to-server payment webhooks; auth = HMAC signature). See [task-03-orders-checkout](day-07/task-03-orders-checkout.md).
 - [ ] 3. Observability: structured logs, CloudWatch "sale room" dashboards, Container Insights, X-Ray through OpenTelemetry

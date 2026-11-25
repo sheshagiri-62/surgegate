@@ -1,0 +1,5 @@
+clusterName: ""
+nodeRole: ""
+cpuLimit: 6
+instanceTypes: ["t3.medium"]
+tags: {}
