@@ -288,8 +288,8 @@ resource "aws_lambda_function" "fn" {
       ORIGIN_VERIFY_SECRET   = var.origin_verify_secret
       ORIGIN_VERIFY_REQUIRED = tostring(var.origin_verify_required)
       # Backpressure reads the booking API's ALB metrics (empty while the environment is down).
-      ALB_ARN_SUFFIX          = coalesce(var.booking_alb_arn_suffix, "")
-      TARGET_GROUP_ARN_SUFFIX = coalesce(var.booking_target_group_arn_suffix, "")
+      ALB_ARN_SUFFIX          = var.booking_alb_arn_suffix == null ? "" : var.booking_alb_arn_suffix
+      TARGET_GROUP_ARN_SUFFIX = var.booking_target_group_arn_suffix == null ? "" : var.booking_target_group_arn_suffix
     }
   }
 
