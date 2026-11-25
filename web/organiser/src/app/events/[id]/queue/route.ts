@@ -1,14 +1,12 @@
 // Pause / resume / admission rate: a plain form POST, then back to the event page.
-import { NextResponse } from "next/server";
-
 import { api } from "@/lib/api";
+import { seeOther } from "@/lib/redirect";
 import { token } from "@/lib/session";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const back = new URL(`/organiser/events/${id}`, req.url);
   const t = await token();
-  if (!t) return NextResponse.redirect(new URL("/organiser/login", req.url), 303);
+  if (!t) return seeOther("/organiser/login");
   const form = await req.formData();
   const body = form.get("action")
     ? { action: String(form.get("action")) }
@@ -20,7 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       body: JSON.stringify(body),
     });
   } catch (err) {
-    back.searchParams.set("error", String(err instanceof Error ? err.message : err));
+    return seeOther(`/organiser/events/${id}`, { error: String(err instanceof Error ? err.message : err) });
   }
-  return NextResponse.redirect(back, 303);
+  return seeOther(`/organiser/events/${id}`);
 }

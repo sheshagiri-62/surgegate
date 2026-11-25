@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
+import { seeOther } from "@/lib/redirect";
+import { COOKIE } from "@/lib/session";
 
-import { COOKIE, cookieOptions } from "@/lib/session";
-
-export async function POST(req: Request) {
-  const res = NextResponse.redirect(new URL("/organiser/login", req.url), 303);
-  res.cookies.set(COOKIE, "", cookieOptions(0));
+export async function POST() {
+  const res = seeOther("/organiser/login");
+  res.headers.append("Set-Cookie", `${COOKIE}=; Path=/organiser; Max-Age=0; HttpOnly; SameSite=Strict`);
   return res;
 }
