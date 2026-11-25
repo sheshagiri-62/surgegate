@@ -29,3 +29,13 @@ output "route53_name_servers" {
   description = "Name servers to set at the registrar (only when domain_name is set)."
   value       = local.use_domain ? aws_route53_zone.this[0].name_servers : []
 }
+
+output "buyer_site_bucket" {
+  description = "S3 bucket of the buyer site (CI uploads the static export here)."
+  value       = local.site == 1 ? aws_s3_bucket.site[0].bucket : null
+}
+
+output "distribution_id" {
+  description = "CloudFront distribution ID (cache invalidation after a site deploy)."
+  value       = var.cloudfront_enabled ? aws_cloudfront_distribution.api[0].id : null
+}

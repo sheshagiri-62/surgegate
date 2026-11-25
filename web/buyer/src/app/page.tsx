@@ -16,7 +16,7 @@ export default function Home() {
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (valid) router.push(`/queue/?id=${id.trim()}`);
+          if (valid) router.push(`/waiting/?id=${id.trim()}`);
         }}
       >
         <input

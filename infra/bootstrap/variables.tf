@@ -42,3 +42,15 @@ variable "noncurrent_state_days" {
   type        = number
   default     = 90
 }
+
+variable "site_deploy_envs" {
+  description = "Environments whose buyer-site bucket (<project>-<env>-buyer-site-<account>) CI may upload to."
+  type        = list(string)
+  default     = ["dev"]
+}
+
+variable "site_distribution_ids" {
+  description = "CloudFront distributions whose cache the site deploy may invalidate (not secret)."
+  type        = list(string)
+  default     = ["E8H8TXUDV1OG7"] # dev
+}

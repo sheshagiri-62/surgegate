@@ -374,6 +374,16 @@ resource "aws_cloudfront_distribution" "api" {
     }
   }
 
+  # Buyer site (S3, through the origin access control): the default behaviour when enabled.
+  dynamic "origin" {
+    for_each = local.site == 1 ? [1] : []
+    content {
+      origin_id                = "site"
+      domain_name              = aws_s3_bucket.site[0].bucket_regional_domain_name
+      origin_access_control_id = aws_cloudfront_origin_access_control.site[0].id
+    }
+  }
+
   # Waiting room API (API Gateway), same origin as the site for browsers.
   dynamic "origin" {
     for_each = var.queue_api_domain != "" ? [1] : []
@@ -434,11 +444,11 @@ resource "aws_cloudfront_distribution" "api" {
     }
   }
 
-  # Server-rendered pages with a session cookie (organiser dashboard): never cached, every
-  # viewer header / cookie / query string forwarded. Explicit, so they keep working when the
-  # default behaviour becomes the static buyer site.
+  # Everything else served by the ALB (booking API routes, organiser SSR pages with a session
+  # cookie, mock checkout): never cached, every viewer header / cookie / query string forwarded.
+  # Explicit, because the default behaviour is the static buyer site when it is enabled.
   dynamic "ordered_cache_behavior" {
-    for_each = toset(var.ssr_path_patterns)
+    for_each = var.alb_path_patterns
     content {
       path_pattern             = ordered_cache_behavior.value
       target_origin_id         = "api"
@@ -459,20 +469,24 @@ resource "aws_cloudfront_distribution" "api" {
     }
   }
 
+  # Default: the buyer site from S3 (cached; page URLs rewritten to index.html) when enabled,
+  # otherwise the ALB as before.
   default_cache_behavior {
-    target_origin_id         = "api"
-    viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
-    compress                 = true
+    target_origin_id           = local.site == 1 ? "site" : "api"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = local.site == 1 ? ["GET", "HEAD", "OPTIONS"] : ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = local.site == 1 ? data.aws_cloudfront_cache_policy.optimized.id : data.aws_cloudfront_cache_policy.disabled.id
+    origin_request_policy_id   = local.site == 1 ? null : data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+    response_headers_policy_id = local.site == 1 ? data.aws_cloudfront_response_headers_policy.security.id : null
+    compress                   = true
 
+    # Site: the rewrite (S3 doesn't depend on make down). ALB default: the 503 while down.
     dynamic "function_association" {
-      for_each = var.origin_enabled ? [] : [1]
+      for_each = local.site == 1 ? [aws_cloudfront_function.site_rewrite[0].arn] : (var.origin_enabled ? [] : [aws_cloudfront_function.origin_down.arn])
       content {
         event_type   = "viewer-request"
-        function_arn = aws_cloudfront_function.origin_down.arn
+        function_arn = function_association.value
       }
     }
   }

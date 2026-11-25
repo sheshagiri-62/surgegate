@@ -4,6 +4,7 @@ locals {
     "arn:aws:iam::${local.account_id}:role/${var.project}-gha-plan",
     "arn:aws:iam::${local.account_id}:role/${var.project}-gha-apply",
     "arn:aws:iam::${local.account_id}:role/${var.project}-gha-ecr-push",
+    "arn:aws:iam::${local.account_id}:role/${var.project}-gha-site-deploy",
   ]
 }
 

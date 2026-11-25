@@ -106,3 +106,13 @@ output "live_ws_url" {
   description = "Organiser live-dashboard WebSocket URL (booking API: LIVE_WS_URL)."
   value       = module.events.live_ws_url
 }
+
+output "buyer_site_bucket" {
+  description = "Buyer site bucket (build-deploy-buyer uploads here)."
+  value       = module.edge.buyer_site_bucket
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution (site cache invalidation)."
+  value       = module.edge.distribution_id
+}

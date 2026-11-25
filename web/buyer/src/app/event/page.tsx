@@ -26,7 +26,7 @@ function EventPage() {
   // No valid booking pass for this event: back to the waiting room.
   const toQueue = useCallback(() => {
     clearPass(eventId);
-    router.push(`/queue/?id=${eventId}`);
+    router.push(`/waiting/?id=${eventId}`);
   }, [router, eventId]);
   // This page renders only in the browser (useSearchParams in a static export), so reading
   // sessionStorage in the initializer is safe.

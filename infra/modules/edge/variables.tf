@@ -121,11 +121,19 @@ variable "extra_routes" {
   default = {}
 }
 
-variable "ssr_path_patterns" {
+variable "alb_path_patterns" {
   description = <<-EOT
-    CloudFront path patterns of server-rendered pages behind the ALB that use a session
-    cookie (e.g. the organiser dashboard). Caching disabled, cookies and headers forwarded.
+    CloudFront path patterns that go to the ALB with caching disabled and every viewer header,
+    cookie and query string forwarded: booking API routes, organiser SSR pages, mock checkout.
+    Needed because the default behaviour is the static buyer site when buyer_site_enabled.
+    Order matters (CloudFront uses the first match).
   EOT
   type        = list(string)
   default     = []
+}
+
+variable "buyer_site_enabled" {
+  description = "Serve the buyer site from S3 as the distribution's default behaviour."
+  type        = bool
+  default     = false
 }

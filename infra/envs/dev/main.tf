@@ -141,8 +141,15 @@ module "edge" {
   queue_api_domain = trimprefix(module.queue.api_endpoint, "https://")
   # TEMPORARY demo access to the ALB: pass -var=debug_ingress_cidr=<ip>/32, then apply without it.
   debug_ingress_cidr = var.debug_ingress_cidr
-  # Organiser dashboard (SSR + session cookie): its own no-cache CloudFront behaviours.
-  ssr_path_patterns = ["/organiser", "/organiser/*"]
+  # Buyer site on S3 is the default behaviour; everything served by the ALB is listed here
+  # (no cache, cookies/headers forwarded). /book/* and /queue/* have their own behaviours.
+  buyer_site_enabled = true
+  alb_path_patterns = [
+    "/organiser", "/organiser/*",          # organiser dashboard (SSR + session cookie)
+    "/org/*", "/me", "/me/*", "/orders/*", # booking API
+    "/webhooks/*", "/healthz",
+    "/mockpay/checkout/*", # mock-pay checkout page (ADR 004)
+  ]
   # mock-pay (ADR 004): ONLY the public checkout page; /v1/* and /mockpay/test/* stay in-cluster.
   extra_routes = {
     "mock-pay" = { path_patterns = ["/mockpay/checkout/*"], priority = 5 }
@@ -205,7 +212,7 @@ module "queue" {
   table_arn          = module.data.queue_table_arn
   cognito_issuer     = module.identity.issuer
   cognito_client_ids = values(module.identity.client_ids)
-  cors_allow_origins = ["http://localhost:3000"] # buyer app in dev (CloudFront later: same origin)
+  cors_allow_origins = ["http://localhost:3000", "https://d1t9vww2xtyvsz.cloudfront.net"] # laptop app; the CloudFront site is same-origin
   sale_events_stream = module.events.stream_name
   sale_events_arn    = module.events.stream_arn
 }
