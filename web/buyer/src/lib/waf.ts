@@ -1,9 +1,9 @@
 // AWS WAF challenge (Day 9 Task 2): CloudFront's web ACL challenges POST /queue/<event>/join.
-// A fetch() can't solve that challenge page, so before joining we load AWS's challenge.js
-// (NEXT_PUBLIC_WAF_SDK_URL) and let it get an aws-waf-token: it runs a short proof-of-work in
-// the browser and stores the token as a cookie on our domain, which the join request then
-// carries. Scripts without a browser (curl, bots) get the challenge instead.
-// Empty URL (local dev without WAF) = no-op.
+// A fetch() can't solve a challenge page. Today the browser gets its aws-waf-token when WAF
+// challenges the /waiting/ page load (the browser solves that page by itself), and the join
+// request then carries the cookie. If AWS ever issues an SDK integration URL for this web ACL
+// (only for ATP / ACFP / Bot Control TARGETED), set NEXT_PUBLIC_WAF_SDK_URL and this helper
+// fetches the token with challenge.js instead. Empty URL (today, and local dev) = no-op.
 
 const SDK_URL = process.env.NEXT_PUBLIC_WAF_SDK_URL ?? "";
 

@@ -4,8 +4,8 @@ output "web_acl_arn" {
 }
 
 output "challenge_sdk_url" {
-  description = "WAF JavaScript SDK (challenge.js) the buyer site loads to get its aws-waf-token."
-  value       = "${aws_wafv2_web_acl.this.application_integration_url}challenge.js"
+  description = "WAF JavaScript SDK (challenge.js); null unless AWS issues an integration URL (ATP / ACFP / Bot Control TARGETED only)."
+  value       = aws_wafv2_web_acl.this.application_integration_url != "" ? "${aws_wafv2_web_acl.this.application_integration_url}challenge.js" : null
 }
 
 output "log_group_name" {

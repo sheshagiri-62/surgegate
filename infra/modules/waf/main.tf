@@ -8,13 +8,20 @@
 #   2  IpReputation          AWS managed: known bad IPs
 #   3  RateLimitAll          > rate_limit_per_5min per IP, any path  -> 429
 #   4  RateLimitJoin         > join_limit_per_min joins per IP      -> 429
-#   5  ChallengeJoin         POST /queue/<event>/join needs a solved challenge (aws-waf-token);
-#                            the buyer site gets one with challenge.js, a script can't
-#   6  BotControl            AWS managed, COMMON level, ONLY /queue/* (fewer billed requests)
-#   7  CommonRuleSet         AWS managed (OWASP-style); body-size rule counted, not blocked
+#   5  ChallengePage         GET /waiting/* (the waiting-room page): a browser solves the
+#                            challenge page by itself and gets the aws-waf-token cookie
+#   6  ChallengeJoin         POST /queue/<event>/join needs that token; a script without a
+#                            browser (curl, bots) gets the challenge instead
+#   7  BotControl            AWS managed, COMMON level, ONLY /queue/* (fewer billed requests)
+#   8  CommonRuleSet         AWS managed (OWASP-style); body-size rule counted, not blocked
 #                            (organisers upload seat-map CSVs)
 #
-# Prices (Price List API, 25 Nov 2026, global/CloudFront): web ACL $5/month, $1/month per rule,
+# Why the page and not the JS SDK: AWS only issues an SDK integration URL for ATP / ACFP /
+# Bot Control TARGETED. Challenging the page navigation needs no SDK (Next.js falls back to a
+# full page load when its navigation fetch gets the challenge instead of page data).
+#
+# Prices (Price List API, 25 Nov 2026, global/CloudFront): web ACL $5/month, $1/month per rule
+# (8 rules here, +1 while the load-test rule is on),
 # $0.60 per million requests, Bot Control $10/month + first 10M requests/month free then
 # $1/million, challenges $0.40 per million. All fixed fees prorated hourly.
 # ---------------------------------------------------------------------------
@@ -191,10 +198,54 @@ resource "aws_wafv2_web_acl" "this" {
     }
   }
 
-  # 5 -- challenge before join: passes with a valid aws-waf-token, otherwise the challenge
+  # 5 -- the waiting-room page: the browser gets its aws-waf-token here
+  rule {
+    name     = "ChallengePage"
+    priority = 5
+    action {
+      challenge {}
+    }
+    statement {
+      and_statement {
+        statement {
+          byte_match_statement {
+            search_string         = "/waiting/"
+            positional_constraint = "STARTS_WITH"
+            field_to_match {
+              uri_path {}
+            }
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+        statement {
+          byte_match_statement {
+            search_string         = "GET"
+            positional_constraint = "EXACTLY"
+            field_to_match {
+              method {}
+            }
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+      }
+    }
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "ChallengePage"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # 6 -- challenge before join: passes with a valid aws-waf-token, otherwise the challenge
   rule {
     name     = "ChallengeJoin"
-    priority = 5
+    priority = 6
     action {
       challenge {}
     }
@@ -217,10 +268,10 @@ resource "aws_wafv2_web_acl" "this" {
     }
   }
 
-  # 6 -- bots, only on the waiting room
+  # 7 -- bots, only on the waiting room
   rule {
     name     = "BotControl"
-    priority = 6
+    priority = 7
     override_action {
       none {}
     }
@@ -255,10 +306,10 @@ resource "aws_wafv2_web_acl" "this" {
     }
   }
 
-  # 7 -- common web exploits
+  # 8 -- common web exploits
   rule {
     name     = "CommonRuleSet"
-    priority = 7
+    priority = 8
     override_action {
       none {}
     }
