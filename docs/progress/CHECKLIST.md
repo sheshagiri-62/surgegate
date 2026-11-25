@@ -108,6 +108,8 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [ ] 3. Consumers: live-dashboard (WebSocket push), analytics (S3 + Athena table), audit — **live-dashboard ([task-03a](day-08/task-03a-live-dashboard.md)) and analytics ([task-03b](day-08/task-03b-analytics.md)) done; audit skipped (cut list, revisit after Day 10)**
 - [x] 4. Organiser SSR dashboard on EKS: live numbers, pause/resume, admission rate, attendee export; gate check-in endpoint ([task-04-organiser-dashboard](day-08/task-04-organiser-dashboard.md); live via CloudFront: one-time check-in, CSV with stored email + formula escaping, relative redirects)
 
+- [x] 5. (added, your request) Buyer site on S3 behind the same CloudFront: `/queue/` page renamed to `/waiting/`, rewrite function, explicit ALB behaviours, allow-lists, CI deploy role ([task-05-buyer-site-s3](day-08/task-05-buyer-site-s3.md); M3 edge check re-run: all pass)
+
 - [x] **M4:** a buyer goes from queue to paid ticket email in one run, a duplicate webhook changes nothing, an unpaid hold is released after 10 minutes, and the organiser watches it update live ([phase-4-milestone](phase-4-milestone.md); met 25 Nov in one run; event → dashboard 0.3–3.7 s; re-take your recording on the M4 page)
 
 ## Phase 5 — Harden and scale (Days 9–10) → M5

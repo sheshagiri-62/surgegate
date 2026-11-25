@@ -13,6 +13,7 @@ interrupted `make down`, which was stopped and fully restored (below).
 | 3a. Live-dashboard consumer + organiser WebSocket (60 s live token) | [#53](https://github.com/sheshagiri-62/surgegate/pull/53) [#54](https://github.com/sheshagiri-62/surgegate/pull/54) | [task-03a-live-dashboard](task-03a-live-dashboard.md) |
 | 3b. Analytics consumer: S3 (gzip JSONL) + Glue + Athena | [#55](https://github.com/sheshagiri-62/surgegate/pull/55) | [task-03b-analytics](task-03b-analytics.md) |
 | 4. Organiser SSR dashboard on EKS + gate check-in + attendee export; your three fixes | [#56](https://github.com/sheshagiri-62/surgegate/pull/56) [#57](https://github.com/sheshagiri-62/surgegate/pull/57) [#58](https://github.com/sheshagiri-62/surgegate/pull/58) | [task-04-organiser-dashboard](task-04-organiser-dashboard.md) |
+| 5. (added) Buyer site on S3 + the same CloudFront; M3 edge check re-run | [#60](https://github.com/sheshagiri-62/surgegate/pull/60) | [task-05-buyer-site-s3](task-05-buyer-site-s3.md) |
 | **M4 met** (one run: queue → paid ticket email, duplicate webhook = no change, unpaid hold released, organiser live) | — | [phase-4-milestone](../phase-4-milestone.md) |
 
 ## Not finished / open items
@@ -28,7 +29,6 @@ interrupted `make down`, which was stopped and fully restored (below).
 - **Kinesis at 50k users** (one shard = 1,000 records/s): on-demand or more shards in `demo`, and
   background retries in producers (in the checklist for Day 9/10).
 - Small follow-up: sort the organiser events list newest first (it shows Valve test on top).
-- **Buyer site still on `localhost:3000`:** S3 + CloudFront is next (your go-ahead given).
 
 ## The interrupted `make down` and the restore
 
@@ -87,6 +87,11 @@ Full details (exact messages, causes, fixes) are in each task report. One line e
 | 34 | 4 | `logGroupName … pattern` again | Path conversion | `MSYS_NO_PATHCONV=1` |
 | 35 | 4 | M4 script: "dashboard … after None s" | My listener recorded pushes late (they were delivered) | Server-side timestamps |
 | 36 | 4 | (finding) your browser on "Valve test" | Events list order | Re-take the recording |
+| 37 | 5 | `Type 'string' is not assignable to type 'never'` | Stale `.next/types` listed the deleted `/queue` page | Rebuilt; tsc exit 0 |
+| 38 | 5 | `Permission … denied … [Destructive or Unwanted Actions]` | I bundled the unapproved #59 merge with #60 | Merged only #60 |
+| 39 | 5 | Pods still had `localhost:3000` only | Argo CD hadn't polled yet | Refresh annotation |
+| 40 | 5 | Asset 2nd request `Miss` | Different cache servers in one edge location | Not a bug (Hits after); check fixed |
+| 41 | 5 | Mock checkout `400` | My script sent `outcome=failure` (valid: `fail`) | Fixed the script |
 
 ## Cost
 
@@ -105,11 +110,8 @@ Gateway, Lambda, SQS, DynamoDB, S3 and Step Functions bill per request only.
 
 ## Day 9 starts with
 
-1. Buyer site on S3 + the same CloudFront: rename the buyer `/queue/` page (it clashes with the
-   API Gateway `/queue/*` behaviour), a CloudFront Function `/x/` → `/x/index.html`, the
-   booking-pass function stays on `/book/*`, buyer origin in the callback/CORS allow-lists, then
-   re-run the M3 edge check.
-2. Day 9 of the plan (speed rules: short plan, start unless it needs hourly cost or a destroy).
+Day 9 of the plan (speed rules: short plan, start unless it needs hourly cost or a destroy).
+The buyer site is live: `https://d1t9vww2xtyvsz.cloudfront.net/`.
 
 **Reminder:** run `make down` when you're done for the day (only when you say so). Until then
 dev bills about $0.35/h.
