@@ -150,4 +150,6 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [ ] 3. Resume bullets with measured numbers; LinkedIn post
 - [ ] 4. `make down` on demo; confirm the bill has stopped
 
+- [ ] **Before ~26 Dec 2026 (free trials end): `make security-off`** — removes GuardDuty, Security Hub and the AWS Config recorder (CloudTrail stays, free). Added 25 Nov (Day 10 Task 3); also part of the final teardown.
+
 - [ ] **M6:** the demo video, results and write-up are public and the AWS bill is back to near zero

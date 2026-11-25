@@ -31,7 +31,7 @@ AWS_OK = aws sts get-caller-identity --query Account --output text >/dev/null ||
 	{ echo "ERROR: the AWS CLI does not work here (credentials expired? run: aws login --profile $(AWS_PROFILE))"; exit 1; }
 
 .DEFAULT_GOAL := help
-.PHONY: help init fmt lint test up down load check-env
+.PHONY: help init fmt lint test up down load check-env security-off
 
 help: ## List available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -161,3 +161,12 @@ billing-check: check-env ## List everything in ENV that bills by the hour (all l
 load: ## Run a k6 load test (K6_SCRIPT=path)
 	@if [ ! -f "$(K6_SCRIPT)" ]; then echo "No k6 script at $(K6_SCRIPT) yet."; \
 	else k6 run "$(K6_SCRIPT)"; fi
+
+security-off: ## Turn OFF GuardDuty, Security Hub and the Config recorder (do it before ~26 Dec 2026, when their free trials end); CloudTrail stays
+	@$(AWS_OK)
+	terraform -chdir=infra/envs/shared init -input=false
+	terraform -chdir=infra/envs/shared plan -input=false -var=enable_security_services=false -out=security-off.tfplan
+	@if [ "$(APPROVE)" != "yes" ]; then read -p "Apply this plan (removes GuardDuty, Security Hub, Config recorder)? Type yes: " a; [ "$$a" = "yes" ] || { echo "Not applied."; rm -f infra/envs/shared/security-off.tfplan; exit 1; }; fi
+	terraform -chdir=infra/envs/shared apply -input=false security-off.tfplan
+	@rm -f infra/envs/shared/security-off.tfplan
+	@echo "Security services off. Check: aws guardduty list-detectors; aws securityhub describe-hub (should fail: not subscribed)"
