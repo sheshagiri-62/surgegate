@@ -156,3 +156,7 @@ rollout:
 # Broken-release test ONLY: a fraction of requests answer 500 (/healthz stays green).
 faultInjection:
   errorRate: "0"
+
+# Graceful shutdown: the ALB needs a few seconds to stop sending to a terminating pod.
+shutdown:
+  preStopSeconds: 15

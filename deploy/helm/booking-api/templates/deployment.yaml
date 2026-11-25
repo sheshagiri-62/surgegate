@@ -37,6 +37,10 @@ spec:
           labelSelector:
             matchLabels:
               {{- include "booking-api.selector" . | nindent 14 }}
+      # Graceful shutdown (found by the Day 10 canary test: 11-31 ALB 502/504 at every scale-down):
+      # preStop keeps serving while the ALB deregisters the pod, then uvicorn drains in-flight
+      # requests (--timeout-graceful-shutdown) before the grace period ends.
+      terminationGracePeriodSeconds: 45
       containers:
         - name: booking-api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -66,6 +70,10 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "{{ .Values.shutdown.preStopSeconds }}"]
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:

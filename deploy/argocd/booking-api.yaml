@@ -29,6 +29,11 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    # The Load Balancer Controller's readiness gate: a new pod is Ready only once the ALB target
+    # group sees it healthy, so a rollout never removes old pods before new ones take traffic.
+    managedNamespaceMetadata:
+      labels:
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true
