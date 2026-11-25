@@ -1,0 +1,17 @@
+# Vulnerability exceptions: findings accepted ON PURPOSE (Day 10 Task 3).
+# One list for both gates in .github/workflows/build-deploy.yml:
+#   - Trivy reads this file natively (--ignorefile) and skips an entry after its expired_at.
+#   - The ECR scan gate reads the same entries (id + expired_at) and fails again once expired.
+# Every entry needs: id (CVE), the package, WHY it is accepted, and an expiry (max ~30 days),
+# so an exception is a reviewed decision with an end date, not a permanent hole.
+#
+# Format:
+#   vulnerabilities:
+#     - id: CVE-2026-00000
+#       paths: []                 # optional
+#       statement: "openssl 3.5.9-1~deb13u1 (base image): no fixed version in Debian yet; not
+#                   reachable from our code paths because ...; re-check weekly"
+#       expired_at: 2026-12-31
+#
+# Today: empty. The booking API runs on python:3.12.16-alpine3.24 with 0 HIGH/CRITICAL.
+vulnerabilities: []
