@@ -1,16 +1,19 @@
 # syntax=docker/dockerfile:1
 # Small, non-root image for the booking API.
-FROM python:3.12-slim AS build
+# Alpine (Day 10 Task 3): python:3.12-slim (Debian 13) had 54 HIGH findings with no fixed
+# version (openssl, util-linux, ...); this image has 0 fixable HIGH/CRITICAL after apk upgrade.
+FROM python:3.12.16-alpine3.24 AS build
 WORKDIR /build
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-FROM python:3.12-slim
+FROM python:3.12.16-alpine3.24
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION} \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
-RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
+# Security updates published after the base image was built (e.g. krb5-libs).
+RUN apk upgrade --no-cache && adduser -D -H -u 10001 -s /sbin/nologin app
 COPY --from=build /install /usr/local
 WORKDIR /srv
 # RDS CA bundle: the app verifies the database's TLS certificate (sslmode=verify-full).
