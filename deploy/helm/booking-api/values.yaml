@@ -2,7 +2,7 @@
 # image.tag is changed ONLY by .github/workflows/build-deploy.yml (git SHA of the build).
 image:
   repository: 968077439619.dkr.ecr.ap-south-1.amazonaws.com/surgegate/booking-api
-  tag: "5ed9167b08a5" # set by build-deploy
+  tag: "75bed2111447" # set by build-deploy
   pullPolicy: IfNotPresent
 
 replicaCount: 2
