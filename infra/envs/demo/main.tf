@@ -95,6 +95,9 @@ module "eks" {
   lbc_replicas = 2
 
   # Container Insights + pod logs + OTLP -> X-Ray (Day 9 Task 3): on for the load-test window.
+  # Canary releases with automatic rollback (Day 10 Task 2)
+  enable_argo_rollouts = true
+
   enable_container_insights = true
 
   gitops_repo_url = "https://github.com/sheshagiri-62/surgegate.git"

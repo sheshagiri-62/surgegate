@@ -88,6 +88,9 @@ module "eks" {
 
   # CloudWatch agent add-on: dev keeps only its OTLP receiver (traces -> X-Ray). Container
   # Insights metrics + pod logs measured ~$0.60/day, so they're on in demo only (25 Nov decision).
+  # Canary releases with automatic rollback (Day 10 Task 2)
+  enable_argo_rollouts = true
+
   enable_container_insights  = true
   container_insights_metrics = false
 

@@ -137,3 +137,22 @@ tracing:
   enabled: true
   otlpEndpoint: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4318
   sampleRatio: "0.1"
+
+# Canary releases with Argo Rollouts (Day 10 Task 2). Analysis reads the booking-api target
+# group's CloudWatch metrics (terraform output: alb / target group ARN suffixes).
+rollout:
+  enabled: true
+  steps: [25, 50] # then 100%
+  analysis:
+    initialDelay: 3m # ALB metrics arrive ~3 min late
+    window: 5m # each measurement reads the last 5 one-minute datapoints
+    interval: 1m
+    count: 3
+    max5xxPct: 2
+    maxP95Seconds: 0.5
+    loadBalancer: app/surgegate-dev-api/f466ab745985ef97
+    targetGroup: targetgroup/surgegate-dev-booking-api/22d6cb6325c2fb1c
+
+# Broken-release test ONLY: a fraction of requests answer 500 (/healthz stays green).
+faultInjection:
+  errorRate: "0"
