@@ -98,3 +98,22 @@ variable "sale_events_arn" {
   type        = string
   default     = ""
 }
+
+variable "origin_verify_header_name" {
+  description = "Header CloudFront adds on the queue origin."
+  type        = string
+  default     = "X-Origin-Verify"
+}
+
+variable "origin_verify_secret" {
+  description = "Its value (shared with the ALB origin). Empty = no check possible."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "origin_verify_required" {
+  description = "Refuse API requests without the header (i.e. sent straight to execute-api, bypassing CloudFront and WAF)."
+  type        = bool
+  default     = false
+}

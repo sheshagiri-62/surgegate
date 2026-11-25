@@ -116,3 +116,8 @@ output "cloudfront_distribution_id" {
   description = "CloudFront distribution (site cache invalidation)."
   value       = module.edge.distribution_id
 }
+
+output "waf_challenge_sdk_url" {
+  description = "challenge.js for the buyer site (NEXT_PUBLIC_WAF_SDK_URL)."
+  value       = var.enable_waf ? module.waf[0].challenge_sdk_url : null
+}

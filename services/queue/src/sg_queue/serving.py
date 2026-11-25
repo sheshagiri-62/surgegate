@@ -9,12 +9,13 @@ instance every 2 s.
 
 from __future__ import annotations
 
-from sg_queue.common import queue_meta, response, valid_event_id
+from sg_queue.common import edge_only, queue_meta, response, valid_event_id
 
 CACHE_SECONDS = 5
 STATE_CACHE_SECONDS = 2
 
 
+@edge_only
 def handler(event, context):
     event_id = (event.get("pathParameters") or {}).get("event")
     if not valid_event_id(event_id):

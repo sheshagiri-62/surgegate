@@ -90,3 +90,27 @@ variable "ses_sandbox_recipient" {
   default     = ""
   sensitive   = true
 }
+
+variable "enable_waf" {
+  description = "WAF web ACL on CloudFront (monthly fees, prorated hourly). demo: on only for the test window."
+  type        = bool
+  default     = false
+}
+
+variable "waf_load_test_enabled" {
+  description = "ALLOW rule for the load generators: true ONLY for a k6 window."
+  type        = bool
+  default     = false
+}
+
+variable "waf_load_test_cidrs" {
+  description = "Load-generator addresses (/32) for that rule. Pass with -var; never commit personal IPs."
+  type        = list(string)
+  default     = []
+}
+
+variable "queue_origin_verify_required" {
+  description = "Queue Lambdas refuse requests without CloudFront's origin header (straight to execute-api)."
+  type        = bool
+  default     = false
+}

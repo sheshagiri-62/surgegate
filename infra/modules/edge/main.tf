@@ -343,6 +343,7 @@ resource "aws_cloudfront_distribution" "api" {
   is_ipv6_enabled = true
   comment         = "${var.name} booking API"
   price_class     = var.price_class
+  web_acl_id      = var.web_acl_arn # WAF (Day 9 Task 2); null = none
   aliases         = local.use_domain ? [local.api_fqdn] : []
 
   origin {
@@ -395,6 +396,12 @@ resource "aws_cloudfront_distribution" "api" {
         https_port             = 443
         origin_protocol_policy = "https-only"
         origin_ssl_protocols   = ["TLSv1.2"]
+      }
+      # Same shared secret as the ALB origin: the queue Lambdas can refuse requests that did not
+      # come through this distribution (WAF can't attach to an API Gateway HTTP API).
+      custom_header {
+        name  = var.origin_verify_header_name
+        value = var.origin_verify_secret
       }
     }
   }

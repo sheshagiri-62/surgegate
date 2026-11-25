@@ -57,6 +57,7 @@ jobs:
           NEXT_PUBLIC_QUEUE_API: ""
           NEXT_PUBLIC_COGNITO_REGION: ap-south-1
           NEXT_PUBLIC_COGNITO_CLIENT_ID: aaaemg3vc5gjrerk026jh5r9e # buyer-web app client (public)
+          NEXT_PUBLIC_WAF_SDK_URL: ${{ vars.WAF_SDK_URL }} # empty: the token comes from the challenged /waiting/ page (see infra/modules/waf)
 
       - name: Configure AWS credentials (OIDC, site-deploy role)
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
