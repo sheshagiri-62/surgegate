@@ -28,6 +28,20 @@
 | The shared counter is cached 5 s at the edge (23 Nov) | 8 requests to `/queue/<event>/serving`, about 2 s apart | `Miss`, `Hit (Age 1)`, `Hit (Age 3)`, `Miss`, `Hit (Age 2)`, `Hit (Age 4)`, `Miss`, `Hit (Age 1)`; `Cache-Control: public, max-age=5` |
 | Everything through one origin (23 Nov) | Organiser API, join, position, admit, `/book` all via the CloudFront domain | default → ALB, `/queue/*` → API Gateway, `/book/*` → booking-pass function → ALB |
 
+## Re-check 25 Nov: after the buyer site moved to S3 (default behaviour)
+
+Run with `site_edge_check.py` through `https://d1t9vww2xtyvsz.cloudfront.net`
+([day-08 task-05](day-08/task-05-buyer-site-s3.md)). **All checks passed.**
+
+| Check | Result |
+| --- | --- |
+| `/book/*` with no pass / garbage / forged / expired | `403`, `X-Cache: FunctionGeneratedResponse from cloudfront` (refused at the edge) |
+| Valid pass, wrong user | Passes the edge, then refused by the API: `403 … pass belongs to someone else` |
+| Valid pass, right user | `200`, 10 seats |
+| `/queue/<event>/serving` | `Miss Hit Hit Miss Hit Miss` (cached 5 s at the edge) |
+| `/queue/…/position` without a token | `401` from API Gateway |
+| Buyer waiting-room page | Now `/waiting/?id=…`, served from S3 (the old `/queue/` page path would have hit API Gateway) |
+
 ## How to demo it
 
 Prerequisites: `make up`; Argo CD Synced/Healthy; `kubectl -n booking port-forward
@@ -36,7 +50,7 @@ svc/booking-api 18080:80`; `cd web/buyer && npm run dev`.
 1. **Organiser opens a waiting room**, with the sale 2 minutes away, using organiser A's token:
    `POST /org/events` (sale in 2 min) → `PUT /org/events/{id}/seats` (CSV) →
    `PUT /org/events/{id}/queue {"admission_rate": 5}` → `pre-queue`.
-2. **Buyer** opens `http://localhost:3000/queue/?id=<event>`, signs in (buyer-1, password from
+2. **Buyer** opens `https://d1t9vww2xtyvsz.cloudfront.net/waiting/?id=<event>` (since 25 Nov; was `http://localhost:3000/queue/?id=<event>`), signs in (buyer-1, password from
    `surgegate/dev/test-users`) and sees the **countdown**.
 3. At the start, the page shows **"You are number N"**, people ahead and the wait.
 4. When the valve reaches N, the page **admits automatically and jumps to the seats**, with the
