@@ -290,6 +290,7 @@ resource "aws_lambda_function" "fn" {
       # Backpressure reads the booking API's ALB metrics (empty while the environment is down).
       ALB_ARN_SUFFIX          = var.booking_alb_arn_suffix == null ? "" : var.booking_alb_arn_suffix
       TARGET_GROUP_ARN_SUFFIX = var.booking_target_group_arn_suffix == null ? "" : var.booking_target_group_arn_suffix
+      BACKPRESSURE_SLOW_P95   = tostring(var.backpressure_slow_p95)
     }
   }
 

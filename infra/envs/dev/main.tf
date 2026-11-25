@@ -230,6 +230,7 @@ module "queue" {
   # Backpressure (Day 10 Task 1) watches the booking API through its ALB metrics.
   booking_alb_arn_suffix          = module.edge.alb_arn_suffix
   booking_target_group_arn_suffix = module.edge.target_group_arn_suffix
+  backpressure_slow_p95           = var.backpressure_slow_p95
 }
 
 # ---------------------------------------------------------------------------

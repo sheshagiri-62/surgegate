@@ -129,3 +129,9 @@ variable "booking_target_group_arn_suffix" {
   type        = string
   default     = null
 }
+
+variable "backpressure_slow_p95" {
+  description = "Booking p95 (seconds) above which backpressure lowers the admission rate. 0.5 = the SLO; a tiny value only for a live test."
+  type        = number
+  default     = 0.5
+}
