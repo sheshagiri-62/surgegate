@@ -86,8 +86,10 @@ module "eks" {
 
   lbc_replicas = 1
 
-  # Container Insights + pod logs + OTLP -> X-Ray (Day 9 Task 3); per-observation billing.
-  enable_container_insights = true
+  # CloudWatch agent add-on: dev keeps only its OTLP receiver (traces -> X-Ray). Container
+  # Insights metrics + pod logs measured ~$0.60/day, so they're on in demo only (25 Nov decision).
+  enable_container_insights  = true
+  container_insights_metrics = false
 
   gitops_repo_url = "https://github.com/sheshagiri-62/surgegate.git"
   gitops_path     = "deploy/argocd"

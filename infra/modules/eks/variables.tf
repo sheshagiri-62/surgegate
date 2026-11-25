@@ -154,3 +154,9 @@ variable "container_log_retention_days" {
   type        = number
   default     = 7
 }
+
+variable "container_insights_metrics" {
+  description = "With the add-on on: Container Insights metrics + Fluent Bit pod logs (false = OTLP trace receiver only)."
+  type        = bool
+  default     = true
+}

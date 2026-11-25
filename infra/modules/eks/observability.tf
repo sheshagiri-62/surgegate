@@ -8,6 +8,7 @@
 # (per signal), OTLP span metrics and profiles (custom metrics).
 # ---------------------------------------------------------------------------
 locals {
+  # Kept whenever the add-on runs (empty log groups cost nothing; no data deleted on a switch).
   ci_log_groups = var.enable_container_insights ? toset(["application", "dataplane", "host", "performance"]) : toset([])
 }
 
@@ -48,8 +49,9 @@ resource "aws_eks_addon" "cloudwatch" {
   resolve_conflicts_on_update = "OVERWRITE"
 
   configuration_values = jsonencode({
-    containerInsights  = { enabled = true }
-    containerLogs      = { enabled = true }
+    # dev: false (traces only, ~$0.60/day saved); demo: true for the test window
+    containerInsights  = { enabled = var.container_insights_metrics }
+    containerLogs      = { enabled = var.container_insights_metrics }
     applicationSignals = { enabled = false }
     otlp = {
       enabled     = true
