@@ -124,7 +124,7 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 
 **Day 10 — Sat 28 Nov**
 
-- [ ] 1. Pre-scaling job 15 minutes before a sale; backpressure Lambda lowering the admission rate when p95 > 500 ms
+- [x] 1. Pre-scaling job 15 minutes before a sale; backpressure Lambda lowering the admission rate when p95 > 500 ms ([task-01-prescale-backpressure](day-10/task-01-prescale-backpressure.md); live: 3rd pod ready 9 min before a sale; rate 250 → 175 → 122 when slow, back to 250 after)
 - [ ] 2. Argo Rollouts canary for the booking API with automatic rollback on error rate
 - [ ] 3. Security: GuardDuty, Security Hub, CloudTrail; ECR scan and Trivy gates; secrets rotation check
 - [ ] 4. k6 runs at 10,000 then 50,000 virtual users; record join success, booking p95, oversold seats, cost
