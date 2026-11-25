@@ -52,3 +52,4 @@ Reports follow [TEMPLATE.md](TEMPLATE.md).
 | 2026-11-25 | 9 | Task 3 — Observability: JSON logs, OTel → X-Ray (Transaction Search), Container Insights (demo only), sale-room dashboard | [task-03-observability](day-09/task-03-observability.md) |
 | 2026-11-25 | 9 | Task 4 — 14 SLO alarms → SNS email, 3 runbooks; budget counts usage before credits ($15.73 MTD) | [task-04-slo-alarms](day-09/task-04-slo-alarms.md) |
 | 2026-11-25 | 9 | Day 9 summary — Tasks 1 (plan only), 2, 3, 4 done | [day-09/SUMMARY](day-09/SUMMARY.md) |
+| 2026-11-25 | 10 | Task 1 — Pre-scaling (CronJob → HPA min) + backpressure Lambda (admission rate ↓ when booking p95 > 500 ms); both proven live | [task-01-prescale-backpressure](day-10/task-01-prescale-backpressure.md) |
