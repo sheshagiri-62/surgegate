@@ -1,5 +1,6 @@
 # build-deploy: on every push to main that changes the booking API:
-#   test → build → Trivy scan (fail on CRITICAL) → push to ECR (OIDC) → ECR scan result →
+#   test → build → Trivy scan (fail on fixable HIGH/CRITICAL) → push to ECR (OIDC) → ECR scan gate
+#   (HIGH/CRITICAL stops the deploy) →
 #   commit the new image tag to deploy/helm/booking-api/values.yaml (deploy key) → Argo CD deploys.
 # The tag-bump commit only touches values.yaml, which is not in the paths below, so it does not
 # re-trigger this workflow.
@@ -133,13 +134,17 @@ jobs:
             alembic heads | grep -q "(head)"
             echo "image smoke test passed"'
 
-      - name: Scan image with Trivy (fail on CRITICAL)
+      # Day 10 Task 3: the gate now also fails on HIGH. Only findings with a fixed version count
+      # (an unfixable CVE would block every release with nothing to do); those still show in the
+      # ECR scan gate below.
+      - name: Scan image with Trivy (fail on fixable HIGH/CRITICAL)
         if: steps.exists.outputs.found != 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
-          severity: CRITICAL
+          severity: HIGH,CRITICAL
           ignore-unfixed: true
+          trivyignores: .trivyignore.yaml # accepted findings (CVE, reason, expiry)
           exit-code: "1"
           format: table
 
@@ -149,7 +154,10 @@ jobs:
 
       # Basic scan-on-push creates the scan record a few seconds after the push, and
       # `aws ecr wait image-scan-complete` fails at once on ScanNotFoundException, so poll instead.
-      - name: ECR scan-on-push result
+      # Gate: HIGH or CRITICAL in ECR's scan stops the job, so the tag is never bumped and Argo CD
+      # never deploys the image (it stays in ECR for inspection). Accepted findings: the same
+      # .trivyignore.yaml (id + expired_at); an expired exception counts again.
+      - name: ECR scan gate (fail on HIGH/CRITICAL)
         env:
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
@@ -163,6 +171,16 @@ jobs:
           done
           aws ecr describe-image-scan-findings --repository-name "$ECR_REPOSITORY" --image-id imageTag="$TAG" \
             --query 'imageScanFindings.findingSeverityCounts' --output table
+          bad=$(aws ecr describe-image-scan-findings --repository-name "$ECR_REPOSITORY" --image-id imageTag="$TAG" \
+            --query 'imageScanFindings.findings[?severity==`HIGH` || severity==`CRITICAL`].name' --output text | tr '\t' '\n' | sort -u)
+          allowed=$(python3 .github/scripts/vuln_exceptions.py .trivyignore.yaml)
+          echo "accepted (not expired): ${allowed:-none}"
+          for cve in $allowed; do bad=$(echo "$bad" | grep -vx "$cve" || true); done
+          if [ -n "$(echo "$bad" | tr -d '[:space:]')" ]; then
+            echo "::error::ECR scan found HIGH/CRITICAL: $(echo $bad)"
+            exit 1
+          fi
+          echo "ECR gate passed: no HIGH/CRITICAL findings"
 
   bump-tag:
     name: Bump Helm image tag (deploy key)
