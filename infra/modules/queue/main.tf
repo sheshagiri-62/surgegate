@@ -258,6 +258,10 @@ resource "aws_lambda_function" "fn" {
       TOKEN_KEY_SECRET   = aws_secretsmanager_secret.token_key.arn
       PASS_KEY_SECRET    = aws_secretsmanager_secret.pass_key.arn
       SALE_EVENTS_STREAM = var.sale_events_stream
+      # Requests must come through our CloudFront (its origin header), when required.
+      ORIGIN_VERIFY_HEADER   = lower(var.origin_verify_header_name)
+      ORIGIN_VERIFY_SECRET   = var.origin_verify_secret
+      ORIGIN_VERIFY_REQUIRED = tostring(var.origin_verify_required)
     }
   }
 

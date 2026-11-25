@@ -13,6 +13,7 @@ import uuid
 from sg_queue.common import (
     BUYER,
     claims,
+    edge_only,
     groups,
     now_iso,
     queue_meta,
@@ -24,6 +25,7 @@ from sg_queue.common import (
 OPEN_STATUSES = {"pre-queue", "shuffling", "open", "paused"}  # paused: join yes, admit no
 
 
+@edge_only
 def handler(event, context):
     event_id = (event.get("pathParameters") or {}).get("event")
     if not valid_event_id(event_id):

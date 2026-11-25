@@ -146,3 +146,9 @@ variable "buyer_site_enabled" {
   type        = bool
   default     = false
 }
+
+variable "web_acl_arn" {
+  description = "WAF web ACL (CLOUDFRONT scope, us-east-1) for the distribution; null = no WAF."
+  type        = string
+  default     = null
+}

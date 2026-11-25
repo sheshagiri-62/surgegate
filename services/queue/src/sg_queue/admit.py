@@ -21,11 +21,12 @@ import time
 from datetime import UTC, datetime
 
 from sg_queue import sale_events, tokens
-from sg_queue.common import META, claims, pk, response, table, user_sk, valid_event_id
+from sg_queue.common import META, claims, edge_only, pk, response, table, user_sk, valid_event_id
 
 PASS_SECONDS = 15 * 60
 
 
+@edge_only
 def handler(event, context):
     event_id = (event.get("pathParameters") or {}).get("event")
     if not valid_event_id(event_id):

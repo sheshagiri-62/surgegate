@@ -129,6 +129,7 @@ module "edge" {
 
   name                   = local.name
   cloudfront_enabled     = var.enable_cloudfront
+  web_acl_arn            = var.enable_waf ? module.waf[0].web_acl_arn : null
   origin_enabled         = var.enable_eks
   vpc_id                 = module.network.vpc_id
   public_subnet_ids      = module.network.public_subnet_ids
@@ -216,6 +217,27 @@ module "queue" {
   cors_allow_origins = ["http://localhost:3000", "https://d1t9vww2xtyvsz.cloudfront.net"] # laptop app; the CloudFront site is same-origin
   sale_events_stream = module.events.stream_name
   sale_events_arn    = module.events.stream_arn
+
+  # Only requests through our CloudFront (and so through WAF) once required (Day 9 Task 2).
+  origin_verify_secret   = aws_secretsmanager_secret_version.origin_verify.secret_string
+  origin_verify_required = var.queue_origin_verify_required
+}
+
+# ---------------------------------------------------------------------------
+# WAF on CloudFront (Day 9 Task 2). A CloudFront web ACL lives in us-east-1.
+# Fixed fees are prorated hourly: $5/month ACL + $1/month per rule + $10/month Bot Control.
+# ---------------------------------------------------------------------------
+module "waf" {
+  source = "../../modules/waf"
+  count  = var.enable_waf ? 1 : 0
+
+  providers = {
+    aws = aws.us_east_1
+  }
+
+  name              = local.name
+  load_test_enabled = var.waf_load_test_enabled
+  load_test_cidrs   = var.waf_load_test_cidrs
 }
 
 # ---------------------------------------------------------------------------

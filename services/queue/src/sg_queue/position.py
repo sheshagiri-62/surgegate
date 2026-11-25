@@ -15,7 +15,7 @@ import math
 import time
 
 from sg_queue import tokens
-from sg_queue.common import META, claims, pk, response, table, user_sk, valid_event_id
+from sg_queue.common import META, claims, edge_only, pk, response, table, user_sk, valid_event_id
 
 TOKEN_SECONDS = 6 * 3600
 
@@ -28,6 +28,7 @@ def estimated_wait_seconds(ahead: int, rate_per_minute: int) -> int | None:
     return math.ceil(ahead / rate_per_minute) * 60
 
 
+@edge_only
 def handler(event, context):
     event_id = (event.get("pathParameters") or {}).get("event")
     if not valid_event_id(event_id):

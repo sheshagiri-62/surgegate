@@ -4,6 +4,8 @@
 // public, cacheable "now serving" counter -> when your number is reached, swap the token for a
 // 15-minute booking pass -> go to the seats.
 
+import { ensureWafToken, isWafChallenge } from "./waf";
+
 const QUEUE_API = process.env.NEXT_PUBLIC_QUEUE_API ?? "";
 
 export interface Serving {
@@ -40,6 +42,7 @@ async function call<T>(path: string, init: RequestInit = {}, token?: string): Pr
   const headers: Record<string, string> = { ...((init.headers as Record<string, string>) ?? {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
   const r = await fetch(QUEUE_API + path, { ...init, headers, cache: "no-store" });
+  if (isWafChallenge(r)) throw new QueueError(r.status, "security check did not pass, please reload the page");
   const body = await r.json().catch(() => ({}));
   if (!r.ok && r.status !== 202) throw new QueueError(r.status, String(body.detail ?? body.message ?? r.status));
   return body as T;
@@ -47,8 +50,11 @@ async function call<T>(path: string, init: RequestInit = {}, token?: string): Pr
 
 export const getServing = (eventId: string) => call<Serving>(`/queue/${eventId}/serving`);
 
-export const joinQueue = (eventId: string, token: string) =>
-  call<{ request_id: string }>(`/queue/${eventId}/join`, { method: "POST" }, token);
+// Join is challenged by WAF: get the aws-waf-token first (no-op without WAF).
+export const joinQueue = async (eventId: string, token: string) => {
+  await ensureWafToken();
+  return call<{ request_id: string }>(`/queue/${eventId}/join`, { method: "POST" }, token);
+};
 
 export const getPosition = (eventId: string, token: string, requestId?: string) =>
   call<Position>(`/queue/${eventId}/position${requestId ? `?req=${requestId}` : ""}`, {}, token);
