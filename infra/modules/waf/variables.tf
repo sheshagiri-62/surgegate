@@ -30,7 +30,7 @@ variable "join_limit_per_min" {
 variable "challenge_immunity_seconds" {
   description = "How long a solved challenge (aws-waf-token) is valid."
   type        = number
-  default     = 1800
+  default     = 3600 # 1 h: a buyer can wait in the queue and reload without a second challenge
 }
 
 variable "log_retention_days" {
