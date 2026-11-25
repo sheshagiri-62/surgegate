@@ -94,6 +94,9 @@ module "eks" {
 
   lbc_replicas = 2
 
+  # Container Insights + pod logs + OTLP -> X-Ray (Day 9 Task 3): on for the load-test window.
+  enable_container_insights = true
+
   gitops_repo_url = "https://github.com/sheshagiri-62/surgegate.git"
   gitops_path     = "deploy/argocd-demo" # demo apps + values (written at the Day 10 apply)
   gitops_revision = "main"

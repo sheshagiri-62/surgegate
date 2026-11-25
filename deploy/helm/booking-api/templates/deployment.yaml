@@ -44,6 +44,7 @@ spec:
             {{- include "booking-api.redisEnv" . | nindent 12 }}
             {{- include "booking-api.corsEnv" . | nindent 12 }}
             {{- include "booking-api.paymentsEnv" . | nindent 12 }}
+            {{- include "booking-api.otelEnv" (dict "ctx" . "svc" "booking-api") | nindent 12 }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}

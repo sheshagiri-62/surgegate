@@ -51,6 +51,7 @@ spec:
           env:
             {{- include "booking-api.dbEnv" . | nindent 12 }}
             {{- include "booking-api.paymentsEnv" . | nindent 12 }}
+            {{- include "booking-api.otelEnv" (dict "ctx" . "svc" "order-worker") | nindent 12 }}
             - name: WORKER_HEARTBEAT
               value: /tmp/heartbeat
           # The loop touches /tmp/heartbeat at least every ~20 s (SQS long poll).

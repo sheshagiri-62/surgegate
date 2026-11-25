@@ -115,3 +115,11 @@ tickets:
 live:
   keySecretId: surgegate/dev/events/live-key
   wsUrl: wss://co9vraz26k.execute-api.ap-south-1.amazonaws.com/live # terraform output live_ws_url
+
+# Observability (Day 9 Task 3): JSON logs always; traces when the CloudWatch agent add-on runs
+# (infra: enable_container_insights). 10% of requests sampled: inside X-Ray's free 100k/month.
+environment: dev
+tracing:
+  enabled: true
+  otlpEndpoint: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4318
+  sampleRatio: "0.1"
