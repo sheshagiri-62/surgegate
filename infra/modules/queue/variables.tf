@@ -28,6 +28,23 @@ variable "cognito_client_ids" {
   type        = list(string)
 }
 
+variable "loadtest_issuer" {
+  description = "demo load-test window ONLY: the test issuer the JWT authorizer trusts INSTEAD of Cognito. Empty = Cognito (dev, always)."
+  type        = string
+  default     = ""
+}
+
+variable "loadtest_audience" {
+  description = "aud claim of the test issuer's tokens (used only with loadtest_issuer)."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.loadtest_issuer == "" || var.loadtest_audience != ""
+    error_message = "loadtest_issuer needs loadtest_audience."
+  }
+}
+
 variable "cors_allow_origins" {
   description = "Browser origins allowed to call the queue API."
   type        = list(string)

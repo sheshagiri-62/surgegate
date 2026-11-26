@@ -14,7 +14,8 @@ import boto3
 from boto3.dynamodb.conditions import Key
 
 event_id = sys.argv[1]
-table = boto3.resource("dynamodb", region_name="ap-south-1").Table("surgegate-dev-queue")
+env = sys.argv[2] if len(sys.argv) > 2 else "dev"  # python check_queue.py <event-id> [dev|demo]
+table = boto3.resource("dynamodb", region_name="ap-south-1").Table(f"surgegate-{env}-queue")
 items, kwargs = [], {"KeyConditionExpression": Key("PK").eq(f"EVENT#{event_id}")}
 while True:
     page = table.query(**kwargs)

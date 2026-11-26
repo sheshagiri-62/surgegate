@@ -63,6 +63,11 @@ auth:
     - aaaemg3vc5gjrerk026jh5r9e # buyer-web
     - 4r1b379rs37m8mq284e35esfha # organiser-web
     - 7jf95pjsnjqg043d0ing7rngv5 # test (dev scripts)
+  # Demo-only load-test token issuer (Day 10 Task 4). Empty here: dev never trusts it. Only
+  # values-demo.yaml sets it, for the test window, and it is emptied again afterwards.
+  loadtestIssuer:
+    issuer: ""
+    audience: ""
 
 # ElastiCache Redis (seat-map cache). The primary endpoint name is stable across make down/up.
 redis:

@@ -172,3 +172,27 @@ variable "argo_rollouts_chart_version" {
   type        = string
   default     = "2.43.12"
 }
+
+variable "karpenter_capacity_types" {
+  description = "Capacity types of the default (app burst) NodePool."
+  type        = list(string)
+  default     = ["spot", "on-demand"]
+}
+
+variable "karpenter_loadgen_enabled" {
+  description = "Extra Spot-only, tainted NodePool for the k6 load generators (demo load-test window)."
+  type        = bool
+  default     = false
+}
+
+variable "karpenter_loadgen_cpu_limit" {
+  description = "vCPU cap of the load-generator pool (keep within the account's Spot vCPU quota)."
+  type        = number
+  default     = 32
+}
+
+variable "karpenter_loadgen_instance_types" {
+  description = "Instance types for the load generators (memory-heavy: k6 needs ~1-2 MB per virtual user)."
+  type        = list(string)
+  default     = ["r6a.2xlarge", "r5a.2xlarge", "r5.2xlarge", "r7i.2xlarge", "r6i.2xlarge"]
+}

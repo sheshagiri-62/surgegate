@@ -74,15 +74,21 @@ module "eks" {
   vpc_id             = module.network.vpc_id
   private_subnet_ids = module.network.private_subnet_ids
 
-  # Baseline: 2 x t3.medium (one per AZ) = 4 vCPU. Burst: Karpenter up to 6 more vCPU. With dev
-  # (up to 6 vCPU) that stays under the account's 16-vCPU on-demand quota.
+  # Baseline: 2 x t3.medium (one per AZ) = 4 vCPU. App burst: Karpenter up to 12 more vCPU,
+  # on-demand only. Quotas (raised 25 Nov): 32 on-demand + 32 Spot vCPU; dev is down (make down)
+  # during a load-test window. Spot is kept for the k6 load generators (loadgen pool below).
   node_instance_types = ["t3.medium"]
   node_min_size       = 2
   node_desired_size   = 2
   node_max_size       = 3
 
-  enable_karpenter    = true
-  karpenter_cpu_limit = 6
+  enable_karpenter         = true
+  karpenter_cpu_limit      = 12
+  karpenter_capacity_types = ["on-demand"]
+
+  # k6 load generators (Day 10 Task 4): Spot-only, tainted pool, only while enable_loadtest.
+  karpenter_loadgen_enabled   = var.enable_loadtest
+  karpenter_loadgen_cpu_limit = 32 # = the Spot vCPU quota
 
   admin_principal_arns = [
     "arn:aws:iam::${local.account_id}:user/sheshagiri-admin",
@@ -228,7 +234,15 @@ module "queue" {
   table_arn          = module.data.queue_table_arn
   cognito_issuer     = module.identity.issuer
   cognito_client_ids = values(module.identity.client_ids)
-  cors_allow_origins = ["http://localhost:3000", "https://d1t9vww2xtyvsz.cloudfront.net"] # laptop app; the CloudFront site is same-origin
+  cors_allow_origins = ["http://localhost:3000"] # laptop app; the demo CloudFront site is same-origin
+
+  # Load-test window ONLY: the JWT authorizer trusts the test issuer instead of Cognito.
+  loadtest_issuer   = var.enable_loadtest ? module.loadtest_issuer[0].issuer : ""
+  loadtest_audience = var.enable_loadtest ? module.loadtest_issuer[0].audience : ""
+
+  # 50k fans: stage limits under the account's 10,000 rps / 5,000 burst (dev: 1,000 / 2,000).
+  throttle_rate      = 5000
+  throttle_burst     = 5000
   sale_events_stream = module.events.stream_name
   sale_events_arn    = module.events.stream_arn
 
@@ -253,9 +267,11 @@ module "waf" {
     aws = aws.us_east_1
   }
 
-  name              = local.name
-  load_test_enabled = var.waf_load_test_enabled
-  load_test_cidrs   = var.waf_load_test_cidrs
+  name = local.name
+  # ALLOW rule for the load generators: the k6 pods leave through demo's own NAT gateways, so
+  # their 2 Elastic IPs are the whole list. On only while enable_loadtest.
+  load_test_enabled = var.enable_loadtest
+  load_test_cidrs   = [for ip in module.network.nat_public_ips : "${ip}/32"]
 }
 
 # ---------------------------------------------------------------------------
@@ -307,8 +323,35 @@ module "async" {
   event_bus_name        = module.events.bus_name
   cognito_user_pool_id  = module.identity.user_pool_id
   cognito_user_pool_arn = module.identity.user_pool_arn
-  ses_identity_enabled  = false                     # the sender identity is account-wide and already made by dev
-  ses_sender            = var.ses_sender            # uncommitted alerts.auto.tfvars
-  ses_sandbox_recipient = var.ses_sandbox_recipient # uncommitted alerts.auto.tfvars
-  sweep_enabled         = var.enable_data
+  ses_identity_enabled  = false          # the sender identity is account-wide and already made by dev
+  ses_sender            = var.ses_sender # uncommitted alerts.auto.tfvars
+  # demo: EVERY ticket email goes to the SES mailbox simulator (no real inbox; outside the daily
+  # 200-email sandbox quota, still limited to 1 email/s), paced to that rate:
+  ses_sandbox_recipient         = "success@simulator.amazonses.com"
+  tickets_max_concurrency       = 2               # SQS -> Lambda minimum
+  ses_min_send_interval_seconds = 2               # 2 instances x 1 per 2 s = 1 email/s
+  tickets_consumer_enabled      = var.enable_data # no DB: jobs wait in SQS, not in the DLQ
+  sweep_enabled                 = var.enable_data
+}
+
+# ---------------------------------------------------------------------------
+# Observability (Day 9 Task 3/4) for the load tests: the sale-room dashboard (free: 3 per
+# account, dev uses 1) and the SLO alarms ($0.10 per alarm-month, prorated), window only.
+# ---------------------------------------------------------------------------
+module "observability" {
+  source = "../../modules/observability"
+  count  = var.enable_eks ? 1 : 0 # only for a test window: no alarm fees while demo is down
+
+  name                    = local.name
+  region                  = var.region
+  cluster_name            = local.name
+  distribution_id         = coalesce(module.edge.distribution_id, "none")
+  web_acl_name            = local.name
+  queue_api_id            = module.queue.api_id
+  queue_table             = module.data.queue_table_name
+  stream_name             = module.events.stream_name
+  alb_arn_suffix          = module.edge.alb_arn_suffix
+  target_group_arn_suffix = module.edge.target_group_arn_suffix
+  alb_enabled             = var.enable_eks # the ALB follows the EKS switch
+  alerts_topic_arn        = module.async.alerts_topic_arn
 }

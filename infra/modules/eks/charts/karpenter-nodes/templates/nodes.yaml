@@ -46,7 +46,7 @@ spec:
           values: {{ toJson .Values.instanceTypes }}
         - key: karpenter.sh/capacity-type
           operator: In
-          values: ["spot", "on-demand"] # Spot first when available (cheaper for a load test)
+          values: {{ toJson .Values.capacityTypes }} # dev: Spot first when available; demo: on-demand (Spot quota kept for the load generators)
         - key: kubernetes.io/arch
           operator: In
           values: ["amd64"]
@@ -55,3 +55,42 @@ spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     consolidateAfter: 2m
+{{- if .Values.loadgen.enabled }}
+---
+# Load generators ONLY (Day 10 Task 4): Spot, memory-heavy, tainted so that nothing else lands
+# here and k6 lands nowhere else. Empty nodes go away 1 minute after the k6 Jobs finish.
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: loadgen
+spec:
+  template:
+    metadata:
+      labels:
+        surgegate.io/pool: loadgen
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      expireAfter: 6h
+      taints:
+        - key: surgegate.io/loadgen
+          value: "true"
+          effect: NoSchedule
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: {{ toJson .Values.loadgen.instanceTypes }}
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+  limits:
+    cpu: {{ .Values.loadgen.cpuLimit }}
+  disruption:
+    consolidationPolicy: WhenEmpty # never move a running k6 pod
+    consolidateAfter: 1m
+{{- end }}

@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import uuid
 from datetime import UTC, datetime
 from email.mime.application import MIMEApplication
@@ -91,8 +92,41 @@ def put_pdf(key: str, body: bytes) -> None:
     )
 
 
+_last_send = 0.0
+
+
+def pace_sends(now=time.monotonic, sleep=time.sleep) -> None:
+    """Keep at least SES_MIN_SEND_INTERVAL_SECONDS between this instance's sends (0 = off).
+
+    The SES sandbox allows 1 email per second for the whole account, and the mailbox simulator
+    (demo load tests) counts toward that RATE too. demo: 2 instances x one send per 2 s = 1/s,
+    so a burst of 2,000 paid orders drains in ~35 minutes instead of throttling into the DLQ.
+    """
+    global _last_send
+    interval = float(os.getenv("SES_MIN_SEND_INTERVAL_SECONDS", "0") or 0)
+    if interval > 0:
+        wait = _last_send + interval - now()
+        if wait > 0:
+            sleep(wait)
+    _last_send = now()
+
+
+@lru_cache(maxsize=1)
+def _ses():
+    import boto3
+    from botocore.config import Config
+
+    # TooManyRequestsException (rate exceeded) is a throttling error: retried with backoff.
+    return boto3.client(
+        "sesv2",
+        region_name=os.getenv("AWS_REGION", "ap-south-1"),
+        config=Config(retries={"mode": "standard", "max_attempts": 8}),
+    )
+
+
 def send_email(raw: bytes, sender: str, to: str) -> str:
-    r = _client("sesv2").send_email(
+    pace_sends()
+    r = _ses().send_email(
         FromEmailAddress=sender,
         Destination={"ToAddresses": [to]},
         Content={"Raw": {"Data": raw}},

@@ -130,3 +130,21 @@ variable "sweep_enabled" {
   type        = bool
   default     = false
 }
+
+variable "tickets_max_concurrency" {
+  description = "Ticket-worker Lambda instances at most (SQS event source; 2 is the minimum)."
+  type        = number
+  default     = 5
+}
+
+variable "ses_min_send_interval_seconds" {
+  description = "Seconds between ticket emails per worker instance (0 = no pacing). demo: 2 x 2 s = 1/s, the SES sandbox rate."
+  type        = number
+  default     = 0
+}
+
+variable "tickets_consumer_enabled" {
+  description = "Ticket queue -> worker mapping on. Off while the database is down, so jobs wait instead of going to the DLQ."
+  type        = bool
+  default     = true
+}

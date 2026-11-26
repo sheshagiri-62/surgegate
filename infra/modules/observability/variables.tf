@@ -66,3 +66,9 @@ variable "rds_connections_threshold" {
   type        = number
   default     = 70
 }
+
+variable "alb_enabled" {
+  description = "Whether the booking API ALB exists (known at plan time). null = derive it from the suffixes (fine once the ALB exists)."
+  type        = bool
+  default     = null
+}

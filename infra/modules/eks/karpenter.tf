@@ -63,7 +63,13 @@ resource "helm_release" "karpenter_nodes" {
     nodeRole      = module.karpenter[0].node_iam_role_name
     cpuLimit      = var.karpenter_cpu_limit
     instanceTypes = var.karpenter_instance_types
+    capacityTypes = var.karpenter_capacity_types
     tags          = merge(var.tags, { Component = "eks", "karpenter.sh/discovery" = var.name })
+    loadgen = {
+      enabled       = var.karpenter_loadgen_enabled
+      cpuLimit      = var.karpenter_loadgen_cpu_limit
+      instanceTypes = var.karpenter_loadgen_instance_types
+    }
   })]
 
   depends_on = [helm_release.karpenter] # needs the NodePool / EC2NodeClass CRDs

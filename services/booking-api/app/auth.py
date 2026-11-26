@@ -11,6 +11,12 @@ Roles come from `cognito:groups` (set only by an admin). Organisers must also ca
 `tenant_id` claim, added by the pre-token-generation Lambda from the admin-only attribute
 custom:tenant_id. Tenant scoping in the endpoints always uses this claim, never a value from
 the URL or the request body.
+
+Load-test issuer (demo ONLY, Day 10 Task 4): when LOADTEST_ISSUER is set, tokens whose `iss` is
+exactly that URL are checked against ITS JWKS instead: RS256, `aud` must be LOADTEST_AUDIENCE,
+`token_use` "access", and a lifetime (exp - iat) of at most one hour. Such a caller is ALWAYS a
+plain buyer: any groups, tenant or email claim in the token is ignored. dev never sets these
+variables, and the demo apply removes them (with the issuer and its key) after the test.
 """
 
 from __future__ import annotations
@@ -29,16 +35,26 @@ BUYER = "buyer"
 ORGANISER = "organiser"
 
 
+LOADTEST_MAX_LIFETIME_SECONDS = 3600
+
+
 @dataclass(frozen=True)
 class AuthSettings:
     issuer: str
     client_ids: frozenset[str]
     jwks_url: str = ""
     leeway_seconds: int = 60
+    # demo-only load-test issuer (empty = off, the default everywhere else)
+    loadtest_issuer: str = ""
+    loadtest_audience: str = ""
 
     @property
     def jwks(self) -> str:
         return self.jwks_url or f"{self.issuer}/.well-known/jwks.json"
+
+    @property
+    def loadtest_enabled(self) -> bool:
+        return bool(self.loadtest_issuer and self.loadtest_audience)
 
 
 @dataclass(frozen=True)
@@ -68,7 +84,11 @@ def get_auth_settings() -> AuthSettings:
     )
     clients = frozenset(c for c in os.getenv("COGNITO_CLIENT_IDS", "").split(",") if c)
     return AuthSettings(
-        issuer=issuer, client_ids=clients, jwks_url=os.getenv("COGNITO_JWKS_URL", "")
+        issuer=issuer,
+        client_ids=clients,
+        jwks_url=os.getenv("COGNITO_JWKS_URL", ""),
+        loadtest_issuer=os.getenv("LOADTEST_ISSUER", "").rstrip("/"),
+        loadtest_audience=os.getenv("LOADTEST_AUDIENCE", ""),
     )
 
 
@@ -84,7 +104,43 @@ def _unauthorized(detail: str) -> HTTPException:
     )
 
 
+def _unverified_issuer(token: str) -> str:
+    try:
+        return str(jwt.decode(token, options={"verify_signature": False}).get("iss", ""))
+    except jwt.InvalidTokenError:
+        return ""
+
+
+def verify_loadtest_token(token: str, settings: AuthSettings) -> Principal:
+    """A token from the demo load-test issuer: always a plain buyer, at most one hour long."""
+    try:
+        key = _jwks_client(f"{settings.loadtest_issuer}/.well-known/jwks.json")
+        claims = jwt.decode(
+            token,
+            key.get_signing_key_from_jwt(token).key,
+            algorithms=["RS256"],
+            issuer=settings.loadtest_issuer,
+            audience=settings.loadtest_audience,
+            leeway=settings.leeway_seconds,
+            options={"require": ["exp", "iat", "iss", "sub", "aud", "token_use"]},
+        )
+    except jwt.PyJWKClientError as exc:
+        raise _unauthorized("unknown signing key") from exc
+    except jwt.ExpiredSignatureError as exc:
+        raise _unauthorized("token expired") from exc
+    except jwt.InvalidTokenError as exc:
+        raise _unauthorized("invalid token") from exc
+    if claims.get("token_use") != "access":
+        raise _unauthorized("access token required")
+    if int(claims["exp"]) - int(claims["iat"]) > LOADTEST_MAX_LIFETIME_SECONDS:
+        raise _unauthorized("load-test token lives longer than one hour")
+    # Role is fixed here, never read from the token: a test token can't be an organiser.
+    return Principal(sub=claims["sub"], groups=frozenset({BUYER}))
+
+
 def verify_access_token(token: str, settings: AuthSettings) -> Principal:
+    if settings.loadtest_enabled and _unverified_issuer(token) == settings.loadtest_issuer:
+        return verify_loadtest_token(token, settings)
     if not settings.issuer or not settings.client_ids:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "authentication not configured")
     try:

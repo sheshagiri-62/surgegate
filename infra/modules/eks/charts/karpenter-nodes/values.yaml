@@ -2,4 +2,9 @@ clusterName: ""
 nodeRole: ""
 cpuLimit: 6
 instanceTypes: ["t3.medium"]
+capacityTypes: ["spot", "on-demand"]
 tags: {}
+loadgen:
+  enabled: false
+  cpuLimit: 32
+  instanceTypes: ["r6a.2xlarge"]
