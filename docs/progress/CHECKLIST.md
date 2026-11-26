@@ -125,12 +125,12 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 **Day 10 — Sat 28 Nov**
 
 - [x] 1. Pre-scaling job 15 minutes before a sale; backpressure Lambda lowering the admission rate when p95 > 500 ms ([task-01-prescale-backpressure](day-10/task-01-prescale-backpressure.md); live: 3rd pod ready 9 min before a sale; rate 250 → 175 → 122 when slow, back to 250 after)
-- [ ] 2. Argo Rollouts canary for the booking API with automatic rollback on error rate
-- [ ] 3. Security: GuardDuty, Security Hub, CloudTrail; ECR scan and Trivy gates; secrets rotation check
+- [x] 2. Argo Rollouts canary for the booking API with automatic rollback on error rate ([task-02-canary-rollback](day-10/task-02-canary-rollback.md); broken release aborted 5 min 57 s after merge, rolled back 9 s later, 10.3% failed while live; graceful-shutdown fix: 0 errors in 2 restarts)
+- [x] 3. Security: GuardDuty, Security Hub, CloudTrail; ECR scan and Trivy gates; secrets rotation check ([task-03-security](day-10/task-03-security.md); trials to ~26 Dec, Config 27 types; 24 h cost + FSBP score follow-up open; secrets: RDS master rotates every 7 days; 3 of 4 signing-key verifiers are single-key, so rotation needs multi-key support first, see report)
 - [ ] 4. k6 runs at 10,000 then 50,000 virtual users; record join success, booking p95, oversold seats, cost
   - **WAF (Day 9):** run k6 against the **CloudFront URL** (`QUEUE_API=https://<distribution>`; `execute-api` answers 403) with the load-generator ALLOW rule on: `-var=enable_waf=true -var=waf_load_test_enabled=true -var='waf_load_test_cidrs=["<generator IP>/32"]'`, and switch it off right after the run.
   - **Kinesis at 50k users (note from Day 8):** one provisioned shard takes 1,000 records/s (1 MB/s) for writes, so it will throttle (`ProvisionedThroughputExceededException`). For the demo environment, use **on-demand** mode or enough shards (`shard_count` in `infra/envs/demo`), and producers must handle throttling: retry with backoff in the background and never block or fail the request path (today's producers are best-effort and log on failure).
-- [ ] 5. Base image upgrade for booking-api (clear the 3 HIGH ECR findings) and a build-deploy gate that fails on HIGH (added 20 Nov)
+- [x] 5. Base image upgrade for booking-api (clear the 3 HIGH ECR findings) and a build-deploy gate that fails on HIGH ([task-03-security](day-10/task-03-security.md); Alpine: 0 HIGH/CRITICAL, p95 +15%, CPU +6%; gate = fixable HIGH/CRITICAL + ECR scan, exceptions with expiry)
 
 - [ ] **M5:** the 50,000-user test report shows the SLOs met with zero oversold seats, and a deliberately broken release rolls back on its own
 
@@ -142,6 +142,11 @@ Tick a box only when the task report exists in `docs/progress/day-XX/`.
 - [ ] 2. Restore drill: point-in-time restore of RDS to a new instance; record the time as RTO
 - [ ] 3. Azure: Static Web Apps status page; nightly backup copy to Blob Storage via GitHub Actions federated login
 - [ ] 4. Cost report: total spend, cost per sale event from tags and Cost Explorer
+- [ ] 5. (added) UI polish:
+  - organiser events list **newest first** (Valve test was on top during M4)
+  - buyer `/waiting/` **redirects to sign-in** when signed out
+  - buyer header with the **signed-in user + Sign out**
+  - then record the M4 demo video (after this polish, your call)
 
 **Day 12 — Mon 30 Nov**
 
