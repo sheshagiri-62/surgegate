@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: booking-api
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io # deleting the app deletes its resources
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sheshagiri-62/surgegate.git
+    targetRevision: main
+    path: deploy/helm/booking-api
+    helm:
+      releaseName: booking-api
+      valueFiles:
+        - values.yaml
+        - values-demo.yaml # generated: infra/scripts/demo_values.py
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: booking
+  # The pre-scaler CronJob owns the HPA's minReplicas (Day 10 Task 1): don't heal it back.
+  ignoreDifferences:
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      name: booking-api
+      jsonPointers:
+        - /spec/minReplicas
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    # The Load Balancer Controller's readiness gate: a new pod is Ready only once the ALB target
+    # group sees it healthy, so a rollout never removes old pods before new ones take traffic.
+    managedNamespaceMetadata:
+      labels:
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry: # e.g. the migration Job fails while RDS is still restoring after make up
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

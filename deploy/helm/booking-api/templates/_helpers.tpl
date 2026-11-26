@@ -35,6 +35,15 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.auth.userPoolId | quote }}
 - name: COGNITO_CLIENT_IDS
   value: {{ join "," .Values.auth.clientIds | quote }}
+{{- with .Values.auth.loadtestIssuer }}
+{{- if and .issuer .audience }}
+{{- /* demo ONLY, load-test window only (Day 10 Task 4): see app/auth.py */}}
+- name: LOADTEST_ISSUER
+  value: {{ .issuer | quote }}
+- name: LOADTEST_AUDIENCE
+  value: {{ .audience | quote }}
+{{- end }}
+{{- end }}
 {{- end -}}
 
 

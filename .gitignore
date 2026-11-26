@@ -75,3 +75,7 @@ infra/modules/*/.build/
 
 # make up: snapshot chosen for the restore (written by the Makefile)
 infra/envs/*/.restore_snapshot
+
+# demo load test (Day 10 Task 4): terraform outputs + run state, never committed
+tests/load/.demo-out.json
+tests/load/.demo-run.json

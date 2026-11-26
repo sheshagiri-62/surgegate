@@ -84,12 +84,6 @@ variable "ses_sender" {
   sensitive   = true
 }
 
-variable "ses_sandbox_recipient" {
-  description = "SES sandbox recipient for every ticket email. ONLY in the uncommitted alerts.auto.tfvars."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
 
 variable "enable_waf" {
   description = "WAF web ACL on CloudFront (monthly fees, prorated hourly). demo: on only for the test window."
@@ -97,16 +91,19 @@ variable "enable_waf" {
   default     = false
 }
 
-variable "waf_load_test_enabled" {
-  description = "ALLOW rule for the load generators: true ONLY for a k6 window."
+variable "enable_loadtest" {
+  description = <<-EOT
+    Load-test window ONLY (Day 10 Task 4). true creates the test token issuer (+ its key secret
+    and the k6 pod role), makes the demo queue API trust it instead of Cognito, adds the Spot
+    load-generator node pool and the WAF ALLOW rule for demo's NAT IPs. false removes all of it.
+  EOT
   type        = bool
   default     = false
-}
 
-variable "waf_load_test_cidrs" {
-  description = "Load-generator addresses (/32) for that rule. Pass with -var; never commit personal IPs."
-  type        = list(string)
-  default     = []
+  validation {
+    condition     = !var.enable_loadtest || var.enable_eks
+    error_message = "enable_loadtest = true needs enable_eks = true (the k6 pods run in the cluster)."
+  }
 }
 
 variable "queue_origin_verify_required" {

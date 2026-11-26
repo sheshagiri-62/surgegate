@@ -121,3 +121,33 @@ output "waf_challenge_sdk_url" {
   description = "challenge.js for the buyer site (NEXT_PUBLIC_WAF_SDK_URL)."
   value       = var.enable_waf ? module.waf[0].challenge_sdk_url : null
 }
+
+output "alb_arn_suffix" {
+  description = "Booking API ALB (CloudWatch dimension: canary analysis, backpressure)."
+  value       = module.edge.alb_arn_suffix
+}
+
+output "target_group_arn_suffix" {
+  description = "Booking API target group (CloudWatch dimension)."
+  value       = module.edge.target_group_arn_suffix
+}
+
+output "loadtest_issuer" {
+  description = "Load-test token issuer URL (empty outside a load-test window)."
+  value       = var.enable_loadtest ? module.loadtest_issuer[0].issuer : ""
+}
+
+output "loadtest_audience" {
+  description = "aud of the load-test tokens."
+  value       = var.enable_loadtest ? module.loadtest_issuer[0].audience : ""
+}
+
+output "loadtest_key_secret_id" {
+  description = "Secrets Manager name of the load-test issuer's private key."
+  value       = var.enable_loadtest ? module.loadtest_issuer[0].key_secret_id : ""
+}
+
+output "loadtest_jwks_param" {
+  description = "SSM parameter of the load-test issuer's public JWKS."
+  value       = var.enable_loadtest ? module.loadtest_issuer[0].jwks_param : ""
+}

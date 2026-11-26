@@ -313,7 +313,7 @@ resource "aws_lambda_function" "tickets" {
   }
 
   environment {
-    variables = {
+    variables = merge({
       DB_INSTANCE_ID        = var.db_instance_id
       TICKET_KEY_SECRET_ID  = aws_secretsmanager_secret.ticket_key.arn
       TICKET_EMAIL_PARAM    = aws_ssm_parameter.ticket_email.name
@@ -323,7 +323,11 @@ resource "aws_lambda_function" "tickets" {
       COGNITO_USER_POOL_ID  = var.cognito_user_pool_id
       SALE_EVENTS_STREAM    = var.sale_events_stream
       TICKET_CLAIM_SECONDS  = "120" # 2 x timeout
-    }
+      },
+      # SES sandbox rate (1/s for the account): pace sends per instance (demo only; dev unchanged)
+      var.ses_min_send_interval_seconds > 0 ? {
+        SES_MIN_SEND_INTERVAL_SECONDS = tostring(var.ses_min_send_interval_seconds)
+    } : {})
   }
 
   logging_config {
@@ -343,9 +347,12 @@ resource "aws_lambda_event_source_mapping" "tickets" {
   function_name                      = aws_lambda_function.tickets.arn
   batch_size                         = 5
   maximum_batching_window_in_seconds = 0
-  function_response_types            = ["ReportBatchItemFailures"] # one bad order never retries the rest
+  # Off while the database is down (make down): jobs wait in SQS (4 days) instead of failing
+  # 5 times into the DLQ.
+  enabled                 = var.tickets_consumer_enabled
+  function_response_types = ["ReportBatchItemFailures"] # one bad order never retries the rest
   scaling_config {
-    maximum_concurrency = 5 # SES sandbox: 1 email/second
+    maximum_concurrency = var.tickets_max_concurrency # SES sandbox: 1 email/second
   }
   tags = local.tags
 }

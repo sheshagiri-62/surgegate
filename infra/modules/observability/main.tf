@@ -4,9 +4,10 @@
 # Free: the first 3 dashboards per account (50 metrics each); this is the first.
 # ---------------------------------------------------------------------------
 locals {
-  r   = var.region
-  fn  = { for k in ["join", "position", "admit", "serving", "sequencer", "valve"] : k => "${var.name}-queue-${k}" }
-  alb = var.alb_arn_suffix != null && var.target_group_arn_suffix != null
+  r  = var.region
+  fn = { for k in ["join", "position", "admit", "serving", "sequencer", "valve"] : k => "${var.name}-queue-${k}" }
+  # alb_enabled (known at plan time) wins: on a FIRST apply the suffixes are still unknown.
+  alb = var.alb_enabled != null ? var.alb_enabled : (var.alb_arn_suffix != null && var.target_group_arn_suffix != null)
 
   text = { type = "text", width = 24, height = 1 }
 

@@ -70,8 +70,8 @@ data "archive_file" "code" {
   type             = "zip"
   source_dir       = var.source_dir
   output_path      = "${path.module}/.build/sg_queue.zip"
-  output_file_mode = "0644" # same zip on Windows and in CI
-  excludes         = ["**/__pycache__/**", "**/*.pyc"]
+  output_file_mode = "0644"                                                           # same zip on Windows and in CI
+  excludes         = ["**/__pycache__/**", "**/*.pyc", "sg_queue/loadtest_issuer.py"] # issuer: own module (demo only)
 }
 
 # --- SQS: joins + dead-letter queue ------------------------------------------------
@@ -332,14 +332,16 @@ resource "aws_apigatewayv2_api" "this" {
 
 # Cognito access tokens are checked by API Gateway before any Lambda runs (signature, issuer,
 # expiry, and client_id in the audience list).
+# demo load-test window ONLY (Day 10 Task 4): loadtest_issuer swaps the trusted issuer to the
+# test issuer (its own iss + aud) for the window, then back. Empty everywhere else (dev).
 resource "aws_apigatewayv2_authorizer" "cognito" {
   api_id           = aws_apigatewayv2_api.this.id
   name             = "cognito"
   authorizer_type  = "JWT"
   identity_sources = ["$request.header.Authorization"]
   jwt_configuration {
-    issuer   = var.cognito_issuer
-    audience = var.cognito_client_ids
+    issuer   = var.loadtest_issuer != "" ? var.loadtest_issuer : var.cognito_issuer
+    audience = var.loadtest_issuer != "" ? [var.loadtest_audience] : var.cognito_client_ids
   }
 }
 
