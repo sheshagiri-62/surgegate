@@ -60,6 +60,13 @@ resource "aws_cloudfront_vpc_origin" "alb" {
   }
 
   tags = local.tags
+
+  # make down: the distribution must drop this origin BEFORE it is deleted. Without this,
+  # Terraform deleted it first: "CannotDeleteEntityWhileInUse ... associated with one or more
+  # distributions" (27 Nov). create_before_destroy orders the dependent update first.
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Temporary demo/debug access for ONE address (e.g. to show live that a request without the
